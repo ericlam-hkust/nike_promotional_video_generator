@@ -2,8 +2,8 @@ streamlit==1.38.0
 transformers==4.45.2
 diffusers==0.30.3
 accelerate==0.33.0
-torch==2.4.1
-torchvision==0.19.1
+torch==2.5.0                      # ← changed: more recent, better 3.12 support
+torchvision==0.20.0
 Pillow==10.4.0
 numpy==1.26.4
 safetensors==0.4.5
