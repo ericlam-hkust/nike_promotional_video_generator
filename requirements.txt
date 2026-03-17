@@ -10,4 +10,4 @@ Pillow>=10.0.0
 numpy>=1.26.0
 safetensors>=0.4.5
 huggingface_hub>=0.25.0
-moviepy
+moviepy==1.0.3
