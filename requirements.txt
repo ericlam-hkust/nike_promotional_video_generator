@@ -1,8 +1,8 @@
-streamlit
-torch
-transformers
-diffusers
-PIL
-os
-Pillow
-moviepy
+streamlit>=1.28.0
+torch>=2.0.0
+diffusers>=0.21.0
+transformers>=4.30.0
+Pillow>=10.0.0 
+moviepy>=1.0.3
+accelerate>=0.20.0
+huggingface-hub>=0.16.0
