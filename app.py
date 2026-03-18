@@ -165,7 +165,7 @@ Rules:
         }
     }
 
-    model = "mistralai/Mistral-7B-Instruct-v0.2"
+    model = "mistralai/Mistral-7B-Instruct-v0.3"
 
     data = query_with_retry(model, payload)
 
