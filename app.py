@@ -6,21 +6,8 @@ from bs4 import BeautifulSoup
 import os
 import time
 
-def query_with_retry(model, payload):
-    for _ in range(5):
-        res = query_hf(model, payload)
-        data = res.json()
-
-        if isinstance(data, list):
-            return data
-
-        if "loading" in str(data):
-            time.sleep(6)
-
-    return None
-
 # -----------------------------
-# API KEY SETUP
+# API KEY
 # -----------------------------
 HF_API_KEY = None
 if "HF_API_KEY" in st.secrets:
@@ -29,17 +16,47 @@ else:
     HF_API_KEY = os.getenv("HF_API_KEY")
 
 if HF_API_KEY is None:
-    st.error("❌ Hugging Face API key not found.")
+    st.error("❌ Missing Hugging Face API Key")
     st.stop()
 
 # -----------------------------
-# HF API CALL
+# SAFE HF API CALL (NEW ROUTER)
 # -----------------------------
-def query_hf(model, payload):
-    API_URL = f"https://router.huggingface.co/models/{model}"
-    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-    response = requests.post(API_URL, headers=headers, json=payload)
-    return response
+def query_with_retry(model, payload, retries=5):
+    API_URL = f"https://router.huggingface.co/hf-inference/models/{model}"
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    for attempt in range(retries):
+        try:
+            res = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+
+            # Handle non-JSON response
+            try:
+                data = res.json()
+            except:
+                print("⚠️ Non-JSON response:", res.text[:200])
+                time.sleep(3)
+                continue
+
+            # Handle HF errors
+            if isinstance(data, dict):
+                if "error" in data:
+                    print("⚠️ HF error:", data["error"])
+                    time.sleep(5)
+                    continue
+
+            # Success
+            if isinstance(data, list):
+                return data
+
+        except requests.exceptions.RequestException as e:
+            print("⚠️ Request failed:", str(e))
+            time.sleep(3)
+
+    return None
 
 # -----------------------------
 # IMAGE EXTRACTION FROM URL
@@ -50,12 +67,10 @@ def extract_image_from_url(url):
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, "html.parser")
 
-        # Try Open Graph image first
         og = soup.find("meta", property="og:image")
         if og and og.get("content"):
             return og["content"]
 
-        # Fallback: first image tag
         img = soup.find("img")
         if img and img.get("src"):
             return img["src"]
@@ -65,9 +80,9 @@ def extract_image_from_url(url):
         return None
 
 # -----------------------------
-# SAFE IMAGE LOADING
+# LOAD IMAGE SAFELY
 # -----------------------------
-def load_image_from_url(url):
+def load_image(url):
     try:
         res = requests.get(url, timeout=10)
         res.raise_for_status()
@@ -76,28 +91,29 @@ def load_image_from_url(url):
         return None
 
 # -----------------------------
-# IMAGE → DESCRIPTION (BLIP)
+# IMAGE → DESCRIPTION
 # -----------------------------
 def generate_caption(image_url):
     payload = {"inputs": image_url}
-    res = query_hf("Salesforce/blip-image-captioning-base", payload)
+    data = query_with_retry("Salesforce/blip-image-captioning-base", payload)
 
-    try:
-        return res.json()[0]["generated_text"]
-    except:
-        return "white Nike running shoes with modern design"
+    if data:
+        try:
+            return data[0]["generated_text"]
+        except:
+            return "Nike running shoes with modern sporty design"
+    else:
+        return "Nike running shoes with modern sporty design"
 
 # -----------------------------
-# CINEMATIC PROMPT GENERATION
+# STORYBOARD GENERATION
 # -----------------------------
 def generate_cinematic_storyboard(description, name, age, gender, nationality, city):
 
     gender_word = "man" if gender == "Male" else "woman"
 
     prompt = f"""
-You are a world-class film director creating a Nike commercial.
-
-Create a cinematic storyboard with a timeline.
+You are a professional film director creating a Nike commercial storyboard.
 
 Product:
 {description}
@@ -105,7 +121,9 @@ Product:
 Character:
 {name}, a {age}-year-old {nationality} {gender_word} in {city}
 
-STRICT OUTPUT FORMAT:
+Create a cinematic timeline.
+
+STRICT FORMAT:
 
 [0-3s]
 Shot:
@@ -133,46 +151,38 @@ Emotion:
 
 Final Slogan:
 
-STYLE REQUIREMENTS:
-- Nike commercial style
-- Cinematic, dramatic lighting
-- Include motion (running, energy, impact)
-- Include product details (color, texture, glow)
-- Use professional film language (tracking shot, slow motion, close-up, wide shot)
-- No explanations outside format
-
-Generate:
+Rules:
+- Cinematic and detailed
+- Include lighting, motion, product detail
+- No explanation outside format
 """
 
     payload = {
         "inputs": prompt,
         "parameters": {
             "max_new_tokens": 300,
-            "temperature": 0.85,
-            "top_p": 0.95
+            "temperature": 0.8
         }
     }
 
-    # 🔥 BEST MODEL (if available)
-    # model = "meta-llama/Meta-Llama-3-70B-Instruct"
+    model = "mistralai/Mistral-7B-Instruct-v0.2"
 
-    # fallback if rate limited:
-    # model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
-    model = "HuggingFaceH4/zephyr-7b-beta"
+    data = query_with_retry(model, payload)
 
-    res = query_with_retry(model, payload)
-
-    try:
-        return res.json()[0]["generated_text"]
-    except:
-        return "Storyboard generation failed."
+    if data:
+        try:
+            return data[0]["generated_text"]
+        except:
+            return "⚠️ Parsing error. Try again."
+    else:
+        return "⚠️ API failed or model unavailable. Please try again."
 
 # -----------------------------
 # UI
 # -----------------------------
 st.title("🎬 AI Cinematic Nike Ad Generator")
 
-st.markdown("### 📥 Provide Product Input")
+st.markdown("### 📥 Product Input")
 
 input_option = st.radio(
     "Choose input method:",
@@ -180,7 +190,6 @@ input_option = st.radio(
 )
 
 product_url = None
-uploaded_file = None
 image = None
 
 # -----------------------------
@@ -190,18 +199,18 @@ if input_option == "🔗 Use Product URL":
     product_url = st.text_input("Enter Product URL")
 
     if product_url:
-        st.write("🔍 Extracting image from URL...")
+        st.write("🔍 Extracting image...")
         img_url = extract_image_from_url(product_url)
 
         if img_url:
-            image = load_image_from_url(img_url)
+            image = load_image(img_url)
 
             if image:
-                st.image(image, caption="Extracted Product Image")
+                st.image(image, caption="Extracted Image")
             else:
-                st.warning("⚠️ Could not load extracted image.")
+                st.warning("⚠️ Failed to load image from URL.")
         else:
-            st.warning("⚠️ Could not find image in URL.")
+            st.warning("⚠️ No image found at URL.")
 
 # -----------------------------
 # OPTION 2: UPLOAD
@@ -225,29 +234,27 @@ nationality = st.text_input("Nationality", "Chinese")
 city = st.text_input("City", "Shanghai")
 
 # -----------------------------
-# GENERATE
+# GENERATE BUTTON
 # -----------------------------
-if st.button("🚀 Generate Cinematic Ad"):
+if st.button("🚀 Generate Cinematic Storyboard"):
 
     if image is None:
-        st.error("❌ Please provide a product image (URL or upload).")
+        st.error("❌ Please provide a product image.")
         st.stop()
 
     st.write("🧠 Understanding product...")
 
-    # Use URL if available, otherwise fallback text
-    image_input = product_url if product_url else "Nike product image"
-
+    image_input = product_url if product_url else "Nike running shoes"
     description = generate_caption(image_input)
 
     st.write("**Detected product:**", description)
 
-    st.write("🎬 Generating cinematic storyline...")
+    st.write("🎬 Generating storyboard...")
 
-    cinematic_prompt = generate_cinematic_storyboard(
+    storyboard = generate_cinematic_storyboard(
         description, name, age, gender, nationality, city
     )
 
     st.success("✨ Done!")
 
-    st.text_area("🎥 Cinematic Ad Prompt", cinematic_prompt, height=250)
+    st.text_area("🎥 Cinematic Storyboard", storyboard, height=350)
