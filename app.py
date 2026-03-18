@@ -1,95 +1,178 @@
 import streamlit as st
-from huggingface_hub import InferenceClient
+import requests
 from PIL import Image
-import io
+from io import BytesIO
+from bs4 import BeautifulSoup
+import os
 
-st.set_page_config(page_title="Nike Video Generator (HF Inference)", layout="wide")
+# -----------------------------
+# API KEY
+# -----------------------------
+HF_API_KEY = None
+if "HF_API_KEY" in st.secrets:
+    HF_API_KEY = st.secrets["HF_API_KEY"]
+else:
+    HF_API_KEY = os.getenv("HF_API_KEY")
 
-st.title("👟 Personalized Nike ReactX ZoomX Video Generator")
-st.markdown("Upload your shoe image + customize → generate short motivational running clip via Hugging Face Inference")
+if HF_API_KEY is None:
+    st.error("❌ Missing Hugging Face API Key")
+    st.stop()
 
-# Sidebar for token & settings
-with st.sidebar:
-    st.header("Hugging Face Setup")
-    st.markdown("[Get your token here](https://huggingface.co/settings/tokens) → create 'Inference Providers' token")
-    hf_token = st.text_input("HF API Token", type="password")
+# -----------------------------
+# HF API CALL
+# -----------------------------
+def query_hf(model, payload):
+    API_URL = f"https://api-inference.huggingface.co/models/{model}"
+    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response
 
-    st.header("Generation Settings")
-    provider = st.selectbox("Provider", ["fal-ai", "wavespeedai", "novita"], index=0)
-    resolution = st.selectbox("Resolution", ["512x512", "720x480"], index=1)
-    num_frames = st.slider("Frames (~seconds)", 25, 121, 81)
+# -----------------------------
+# IMAGE EXTRACTION
+# -----------------------------
+def get_product_image(url):
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
 
-# Main content
-uploaded_file = st.file_uploader("Upload your Nike shoe image", type=["png", "jpg", "jpeg"])
+        og = soup.find("meta", property="og:image")
+        if og and og.get("content"):
+            return og["content"]
 
-col1, col2 = st.columns([1, 2])
+        img = soup.find("img")
+        if img and img.get("src"):
+            return img["src"]
 
-with col1:
+        return None
+    except:
+        return None
+
+def load_image(url):
+    try:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        return Image.open(BytesIO(res.content))
+    except:
+        return None
+
+# -----------------------------
+# IMAGE → DESCRIPTION (BLIP-2)
+# -----------------------------
+def generate_caption(image_url):
+    payload = {"inputs": image_url}
+    res = query_hf("Salesforce/blip-image-captioning-base", payload)
+
+    try:
+        return res.json()[0]["generated_text"]
+    except:
+        return "white Nike running shoes with modern design"
+
+# -----------------------------
+# CINEMATIC STORY GENERATION
+# -----------------------------
+def generate_cinematic_prompt(description, name, age, gender, nationality, city):
+
+    # gender wording
+    gender_word = "man" if gender == "Male" else "woman"
+
+    prompt = f"""
+You are a world-class Nike commercial director and cinematic storyteller.
+
+Create a HIGH-END cinematic promotional scene description.
+
+Product:
+{description}
+
+User:
+- Name: {name}
+- Age: {age}
+- Gender: {gender_word}
+- Nationality: {nationality}
+- Location: {city}
+
+STRICT REQUIREMENTS:
+- Output ONLY one cinematic paragraph (no bullet points)
+- Make it visually rich and emotionally powerful
+- Include camera movements, lighting, atmosphere
+- Mention the product in a detailed and stylish way
+- Keep it similar to a Nike commercial
+- Include motion, energy, and confidence
+- No explanations
+
+Style reference:
+"Cinematic motivational running ad at dawn in Tokyo. A confident 28-year-old athlete runs through neon-lit streets..."
+
+Now generate:
+"""
+
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 180,
+            "temperature": 0.9,
+            "top_p": 0.95
+        }
+    }
+
+    res = query_hf("mistralai/Mistral-7B-Instruct-v0.2", payload)
+
+    try:
+        return res.json()[0]["generated_text"]
+    except:
+        return "Cinematic running scene with Nike shoes, sunrise lighting, powerful motion."
+
+# -----------------------------
+# UI
+# -----------------------------
+st.title("🎬 AI Cinematic Nike Ad Generator")
+
+product_url = st.text_input("Nike Product URL (optional)")
+uploaded_file = st.file_uploader("OR Upload Product Image")
+
+name = st.text_input("Name", "David")
+age = st.slider("Age", 18, 50, 28)
+gender = st.selectbox("Gender", ["Male", "Female"])
+nationality = st.text_input("Nationality", "Chinese")
+city = st.text_input("City", "Shanghai")
+
+if st.button("Generate Cinematic Ad Prompt"):
+
+    # -----------------------------
+    # GET IMAGE
+    # -----------------------------
+    img = None
+
+    if product_url:
+        img_url = get_product_image(product_url)
+        if img_url:
+            img = load_image(img_url)
+
     if uploaded_file:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Your shoe", use_column_width=True)
+        img = Image.open(uploaded_file)
 
-with col2:
-    name = st.text_input("Runner name", "Wei")
-    city = st.text_input("City", "Shanghai")
-    age = st.number_input("Age", 30, 50, 35)
+    if img is None:
+        st.warning("⚠️ Using fallback product description")
 
-    default_prompt = f"""Cinematic motivational running ad at dawn in {city}. 
-    A confident {age}-year-old Chinese man named {name} runs smoothly along the riverside path. 
-    He wears these exact white Nike ReactX ZoomX shoes with bold volt neon-green midsole glowing, black Swoosh, orange heel flash. 
-    Dynamic tracking shots, slow-motion foot strikes with glowing energy return, sunrise lighting, empowering atmosphere, 
-    fluid confident strides, professional Nike commercial style, high detail, vibrant colors."""
-
-    prompt = st.text_area("Prompt", default_prompt, height=180)
-
-if st.button("Generate Video", type="primary"):
-    if not hf_token and not st.secrets.get("HF_TOKEN", None):
-        st.error("Please provide your Hugging Face token (sidebar or secrets).")
-    elif not uploaded_file:
-        st.error("Please upload a shoe image first.")
     else:
-        with st.spinner("Generating video... (usually 60–180 seconds)"):
-            try:
-                token = hf_token or st.secrets["HF_TOKEN"]
-                client = InferenceClient(provider=provider, token=token)
+        st.image(img)
 
-                # Prepare image bytes
-                img_bytes = io.BytesIO()
-                Image.open(uploaded_file).save(img_bytes, format="PNG")
-                img_bytes.seek(0)
+    # -----------------------------
+    # DESCRIPTION
+    # -----------------------------
+    st.write("🧠 Understanding product...")
+    description = generate_caption(product_url if product_url else "Nike shoes")
+    st.write("**Detected product:**", description)
 
-                # Generate (using a supported I2V / T2V model - fal-ai often supports Wan variants)
-                video_url = client.text_to_video(
-                    prompt=prompt,
-                    model="Wan-AI/Wan2.2-TI2V-5B",  # or "Lightricks/LTX-Video", "tencent/HunyuanVideo", etc.
-                    image=img_bytes,
-                    num_frames=num_frames,
-                    height=480 if "480" in resolution else 720,
-                    width=854 if "480" in resolution else 1280,
-                    fps=16,
-                )
+    # -----------------------------
+    # GENERATE CINEMATIC PROMPT
+    # -----------------------------
+    st.write("🎥 Generating cinematic storyline...")
 
-                st.success("Video generated!")
-                st.video(video_url)
+    cinematic_prompt = generate_cinematic_prompt(
+        description, name, age, gender, nationality, city
+    )
 
-                # Optional download
-                st.download_button(
-                    "Download MP4",
-                    data=client.get_video_bytes(video_url),  # some clients support direct bytes
-                    file_name=f"nike_{name}_{city}.mp4",
-                    mime="video/mp4"
-                )
+    st.success("✨ Cinematic Prompt Generated")
 
-            except Exception as e:
-                st.error(f"Generation failed: {str(e)}")
-                st.info("""
-Common fixes:
-- Check token has Inference Providers permission
-- Try different provider (fal-ai usually fastest for video)
-- Use shorter num_frames or lower resolution
-- Model may not support image input on this provider → remove image and retry
-- Check https://huggingface.co/models?pipeline_tag=text-to-video for supported models/providers
-                """)
-
-st.markdown("---")
-st.caption("Powered by Hugging Face Inference API • Pay-per-use (very cheap after free credits) • No local GPU needed")
+    st.text_area("🎬 Final Cinematic Prompt", cinematic_prompt, height=250)
