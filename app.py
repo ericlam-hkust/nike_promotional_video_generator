@@ -92,14 +92,41 @@ User:
 {name}, {age}-year-old {nationality} {gender_word} in {city}
 
 Requirements:
-- One paragraph only
+- At least two hundred words
+- Shot-by-Shot Script with Timing
 - Cinematic, emotional, high-end
 - Include camera motion, lighting, energy
 - Describe the product in detail
 - Nike-style storytelling
 
 Example style:
-"Cinematic motivational running ad at dawn in Tokyo..."
+"0:00–0:05 – Opening hook
+Visuals: Fade in from black to aerial drone shot over Shanghai at pre-dawn. Huangpu River glows faintly with city lights. Cut to close-up of alarm clock showing 5:45. A hand (Asian male, mid-30s) turns it off. Camera pans to running shoes (your Nike ReactX ZoomX: white upper, bold volt-green midsole/accents, black Swoosh, orange heel flash) placed by the bed—neon details subtly glowing in low light.
+Voiceover (deep, motivational male voice, slight echo): "In the early dawn of Shanghai, 35-year-old Wei has made the 5:45 alarm a ritual… not a chore."
+Sound: Soft ambient city hum + gentle rising synth pad.
+0:05–0:12 – Lacing up & energy build
+Visuals: Slow-motion close-ups: Hands tying laces (ReactX foam compressing softly). Pull back to full body—Wei in simple running gear standing by window, city skyline behind. Quick cuts: Volt-green midsole details lighting up as he steps. Zoom on black Swoosh + orange heel flash catching first sunlight.
+Voiceover: "It's the quiet thrill of slipping out before the city wakes… lacing up these Nike ReactX ZoomX shoes… and hitting the pavement."
+Sound: Heartbeat pulse + subtle energy-return "whoosh" effect on steps.
+0:12–0:22 – The run
+Visuals: Dynamic tracking shots along the Bund riverside path. Wei running smoothly—fluid strides, confident form. Intercut:
+
+Slow-mo footstrikes (ZoomX foam compressing then exploding forward with energy trails in volt green).
+Close-ups of the vibrant midsole flashing in sunrise light.
+Wide shots: Runners glancing over, impressed by the shoe's bold design.
+POV: Wei's view—path ahead, city awakening.
+Voiceover: "At 35, you're not chasing PRs every run anymore. You've learned smarter running: protecting your body while still pushing it. ReactX hugs your feet… ZoomX turns every impact into forward propulsion. 'You've got more in you today.'"
+Sound: Building upbeat electronic track (think Nike "Just Do It" style—driving bass, motivational synths). Footstrike impacts with satisfying bounce SFX.
+
+0:22–0:32 – Climax acceleration
+Visuals: Wei opens up stride for a strong finish—faster cuts, dynamic angles. Slow-mo burst: Volt-green midsole glowing intensely, orange heel flashing like a spark. Cut to heroic side profile running toward rising sun. Quick montage: Sweat beads, determined expression, city blurring past.
+Voiceover: "Work hard, yes—but carve out time for health. Stress builds up? Run it out. Life speeds up? Keep your own rhythm. The second half of life is for running smarter… stronger… brighter."
+Sound: Music peaks with powerful drop + crowd-like whoosh energy.
+0:32–0:40 – Close & call-to-action
+Visuals: Wei slows to a powerful stop, breathing hard but smiling. Close-up on shoes—volt accents popping. Product lock-up: Full shoe reveal (your image style) with text overlay: "Nike ReactX ZoomX" + tagline fade in. Final frame: Nike swoosh + "Just Do It."
+Voiceover: "These aren't just shoes. They're your 35-year-old declaration: Still fast. Still strong. Still you. In China, every step counts."
+On-screen text (final 5s): "Nike ReactX ZoomX – Available now. Just Do It."
+Sound: Music resolves uplifting, ends on clean hit."
 
 Generate:
 """
