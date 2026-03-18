@@ -229,7 +229,7 @@ if st.button("🚀 Generate Cinematic Ad"):
 
     st.write("🎬 Generating cinematic storyline...")
 
-    cinematic_prompt = generate_cinematic_prompt(
+    cinematic_prompt = generate_cinematic_storyboard(
         description, name, age, gender, nationality, city
     )
 
