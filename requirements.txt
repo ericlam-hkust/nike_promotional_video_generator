@@ -1,3 +1,4 @@
-streamlit>=1.38.0
-huggingface_hub>=0.25.0
+streamlit
+requests
 Pillow
+beautifulsoup4
