@@ -4,6 +4,10 @@ from PIL import Image
 from io import BytesIO
 from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip
 import tempfile
+import imageio_ffmpeg
+import os
+
+os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
 
 HF_API_KEY = st.secrets["HF_API_KEY"]
 
