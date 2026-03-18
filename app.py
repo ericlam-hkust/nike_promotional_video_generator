@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import os
 
 # -----------------------------
-# API KEY
+# API KEY SETUP
 # -----------------------------
 HF_API_KEY = None
 if "HF_API_KEY" in st.secrets:
@@ -15,7 +15,7 @@ else:
     HF_API_KEY = os.getenv("HF_API_KEY")
 
 if HF_API_KEY is None:
-    st.error("❌ Missing Hugging Face API Key")
+    st.error("❌ Hugging Face API key not found.")
     st.stop()
 
 # -----------------------------
@@ -28,18 +28,20 @@ def query_hf(model, payload):
     return response
 
 # -----------------------------
-# IMAGE EXTRACTION
+# IMAGE EXTRACTION FROM URL
 # -----------------------------
-def get_product_image(url):
+def extract_image_from_url(url):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, "html.parser")
 
+        # Try Open Graph image first
         og = soup.find("meta", property="og:image")
         if og and og.get("content"):
             return og["content"]
 
+        # Fallback: first image tag
         img = soup.find("img")
         if img and img.get("src"):
             return img["src"]
@@ -48,7 +50,10 @@ def get_product_image(url):
     except:
         return None
 
-def load_image(url):
+# -----------------------------
+# SAFE IMAGE LOADING
+# -----------------------------
+def load_image_from_url(url):
     try:
         res = requests.get(url, timeout=10)
         res.raise_for_status()
@@ -57,7 +62,7 @@ def load_image(url):
         return None
 
 # -----------------------------
-# IMAGE → DESCRIPTION (BLIP-2)
+# IMAGE → DESCRIPTION (BLIP)
 # -----------------------------
 def generate_caption(image_url):
     payload = {"inputs": image_url}
@@ -69,49 +74,41 @@ def generate_caption(image_url):
         return "white Nike running shoes with modern design"
 
 # -----------------------------
-# CINEMATIC STORY GENERATION
+# CINEMATIC PROMPT GENERATION
 # -----------------------------
 def generate_cinematic_prompt(description, name, age, gender, nationality, city):
 
-    # gender wording
     gender_word = "man" if gender == "Male" else "woman"
 
     prompt = f"""
-You are a world-class Nike commercial director and cinematic storyteller.
+You are a world-class Nike commercial director.
 
-Create a HIGH-END cinematic promotional scene description.
+Create a cinematic promotional ad scene.
 
 Product:
 {description}
 
 User:
-- Name: {name}
-- Age: {age}
-- Gender: {gender_word}
-- Nationality: {nationality}
-- Location: {city}
+{name}, {age}-year-old {nationality} {gender_word} in {city}
 
-STRICT REQUIREMENTS:
-- Output ONLY one cinematic paragraph (no bullet points)
-- Make it visually rich and emotionally powerful
-- Include camera movements, lighting, atmosphere
-- Mention the product in a detailed and stylish way
-- Keep it similar to a Nike commercial
-- Include motion, energy, and confidence
-- No explanations
+Requirements:
+- One paragraph only
+- Cinematic, emotional, high-end
+- Include camera motion, lighting, energy
+- Describe the product in detail
+- Nike-style storytelling
 
-Style reference:
-"Cinematic motivational running ad at dawn in Tokyo. A confident 28-year-old athlete runs through neon-lit streets..."
+Example style:
+"Cinematic motivational running ad at dawn in Tokyo..."
 
-Now generate:
+Generate:
 """
 
     payload = {
         "inputs": prompt,
         "parameters": {
             "max_new_tokens": 180,
-            "temperature": 0.9,
-            "top_p": 0.95
+            "temperature": 0.9
         }
     }
 
@@ -120,15 +117,58 @@ Now generate:
     try:
         return res.json()[0]["generated_text"]
     except:
-        return "Cinematic running scene with Nike shoes, sunrise lighting, powerful motion."
+        return "Cinematic Nike running scene with powerful motion."
 
 # -----------------------------
 # UI
 # -----------------------------
 st.title("🎬 AI Cinematic Nike Ad Generator")
 
-product_url = st.text_input("Nike Product URL (optional)")
-uploaded_file = st.file_uploader("OR Upload Product Image")
+st.markdown("### 📥 Provide Product Input")
+
+input_option = st.radio(
+    "Choose input method:",
+    ["🔗 Use Product URL", "📤 Upload Image"]
+)
+
+product_url = None
+uploaded_file = None
+image = None
+
+# -----------------------------
+# OPTION 1: URL
+# -----------------------------
+if input_option == "🔗 Use Product URL":
+    product_url = st.text_input("Enter Product URL")
+
+    if product_url:
+        st.write("🔍 Extracting image from URL...")
+        img_url = extract_image_from_url(product_url)
+
+        if img_url:
+            image = load_image_from_url(img_url)
+
+            if image:
+                st.image(image, caption="Extracted Product Image")
+            else:
+                st.warning("⚠️ Could not load extracted image.")
+        else:
+            st.warning("⚠️ Could not find image in URL.")
+
+# -----------------------------
+# OPTION 2: UPLOAD
+# -----------------------------
+else:
+    uploaded_file = st.file_uploader("Upload product image", type=["png", "jpg", "jpeg"])
+
+    if uploaded_file:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image")
+
+# -----------------------------
+# USER PROFILE
+# -----------------------------
+st.markdown("### 👤 User Profile")
 
 name = st.text_input("Name", "David")
 age = st.slider("Age", 18, 50, 28)
@@ -136,43 +176,30 @@ gender = st.selectbox("Gender", ["Male", "Female"])
 nationality = st.text_input("Nationality", "Chinese")
 city = st.text_input("City", "Shanghai")
 
-if st.button("Generate Cinematic Ad Prompt"):
+# -----------------------------
+# GENERATE
+# -----------------------------
+if st.button("🚀 Generate Cinematic Ad"):
 
-    # -----------------------------
-    # GET IMAGE
-    # -----------------------------
-    img = None
+    if image is None:
+        st.error("❌ Please provide a product image (URL or upload).")
+        st.stop()
 
-    if product_url:
-        img_url = get_product_image(product_url)
-        if img_url:
-            img = load_image(img_url)
-
-    if uploaded_file:
-        img = Image.open(uploaded_file)
-
-    if img is None:
-        st.warning("⚠️ Using fallback product description")
-
-    else:
-        st.image(img)
-
-    # -----------------------------
-    # DESCRIPTION
-    # -----------------------------
     st.write("🧠 Understanding product...")
-    description = generate_caption(product_url if product_url else "Nike shoes")
+
+    # Use URL if available, otherwise fallback text
+    image_input = product_url if product_url else "Nike product image"
+
+    description = generate_caption(image_input)
+
     st.write("**Detected product:**", description)
 
-    # -----------------------------
-    # GENERATE CINEMATIC PROMPT
-    # -----------------------------
-    st.write("🎥 Generating cinematic storyline...")
+    st.write("🎬 Generating cinematic storyline...")
 
     cinematic_prompt = generate_cinematic_prompt(
         description, name, age, gender, nationality, city
     )
 
-    st.success("✨ Cinematic Prompt Generated")
+    st.success("✨ Done!")
 
-    st.text_area("🎬 Final Cinematic Prompt", cinematic_prompt, height=250)
+    st.text_area("🎥 Cinematic Ad Prompt", cinematic_prompt, height=250)
