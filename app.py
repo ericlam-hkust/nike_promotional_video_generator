@@ -143,7 +143,8 @@ Generate:
     # model = "meta-llama/Meta-Llama-3-70B-Instruct"
 
     # fallback if rate limited:
-    model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    # model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    model = "HuggingFaceH4/zephyr-7b-beta"
 
     res = query_hf(model, payload)
 
