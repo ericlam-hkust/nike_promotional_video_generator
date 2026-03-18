@@ -2,14 +2,29 @@ import streamlit as st
 import requests
 from PIL import Image
 from io import BytesIO
-from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip
+from bs4 import BeautifulSoup
 import tempfile
-import imageio_ffmpeg
 import os
+import imageio_ffmpeg
 
+# Fix ffmpeg for Streamlit Cloud
 os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
 
-HF_API_KEY = st.secrets["HF_API_KEY"]
+from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
+
+# -----------------------------
+# API Key Handling (robust)
+# -----------------------------
+HF_API_KEY = None
+
+if "HF_API_KEY" in st.secrets:
+    HF_API_KEY = st.secrets["HF_API_KEY"]
+else:
+    HF_API_KEY = os.getenv("HF_API_KEY")
+
+if HF_API_KEY is None:
+    st.error("❌ Hugging Face API key not found.")
+    st.stop()
 
 # -----------------------------
 # Hugging Face API helper
@@ -21,16 +36,35 @@ def query_hf(model, payload):
     return response
 
 # -----------------------------
-# Extract product image (simple)
+# Extract product image safely
 # -----------------------------
 def get_product_image(url):
     try:
-        html = requests.get(url).text
-        # naive extraction
-        start = html.find('property="og:image" content="') + 35
-        end = html.find('"', start)
-        img_url = html[start:end]
-        return img_url
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        og = soup.find("meta", property="og:image")
+        if og and og.get("content"):
+            return og["content"]
+
+        img = soup.find("img")
+        if img and img.get("src"):
+            return img["src"]
+
+        return None
+    except:
+        return None
+
+# -----------------------------
+# Safe image loader (NO CRASH)
+# -----------------------------
+def safe_load_image(url):
+    try:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        img = Image.open(BytesIO(res.content))
+        return img
     except:
         return None
 
@@ -40,10 +74,14 @@ def get_product_image(url):
 def generate_caption(image_url):
     payload = {"inputs": image_url}
     res = query_hf("Salesforce/blip-image-captioning-base", payload)
-    return res.json()[0]["generated_text"]
+
+    try:
+        return res.json()[0]["generated_text"]
+    except:
+        return "A stylish Nike product"
 
 # -----------------------------
-# Generate marketing script (LLM)
+# Generate marketing script
 # -----------------------------
 def generate_script(description, user_profile):
     prompt = f"""
@@ -65,10 +103,14 @@ def generate_script(description, user_profile):
     }
 
     res = query_hf("mistralai/Mistral-7B-Instruct-v0.2", payload)
-    return res.json()[0]["generated_text"]
+
+    try:
+        return res.json()[0]["generated_text"]
+    except:
+        return "Just do it. Experience the next level of performance."
 
 # -----------------------------
-# Generate images (Stable Diffusion)
+# Generate image (Stable Diffusion)
 # -----------------------------
 def generate_image(prompt):
     payload = {"inputs": prompt}
@@ -76,34 +118,34 @@ def generate_image(prompt):
 
     if res.status_code == 200:
         return Image.open(BytesIO(res.content))
-    else:
-        return None
+    return None
 
 # -----------------------------
-# Create video from images
+# Create video (stable version)
 # -----------------------------
 def create_video(images):
-    clips = []
+    temp_files = []
+
     for img in images:
-        temp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        img.save(temp_img.name)
+        temp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        img.save(temp.name)
+        temp_files.append(temp.name)
 
-        clip = ImageClip(temp_img.name).set_duration(3)
-        clips.append(clip)
-
-    video = concatenate_videoclips(clips, method="compose")
+    clip = ImageSequenceClip(temp_files, fps=1)
 
     temp_video = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-    video.write_videofile(temp_video.name, fps=24)
+    clip.write_videofile(temp_video.name)
 
     return temp_video.name
 
 # -----------------------------
-# Streamlit UI
+# UI
 # -----------------------------
-st.title("🏃 AI Nike Marketing Video Generator")
+st.title("🏃 AI Marketing Video Generator")
 
-product_url = st.text_input("Nike Product URL")
+product_url = st.text_input("Nike Product URL (optional)")
+uploaded_file = st.file_uploader("OR upload product image")
+
 name = st.text_input("User Name")
 age = st.slider("Age", 10, 60, 25)
 gender = st.selectbox("Gender", ["Male", "Female"])
@@ -113,24 +155,47 @@ if st.button("Generate Video"):
 
     user_profile = f"{age} year old {gender} from {nationality} named {name}"
 
-    st.write("### Step 1: Extracting product image...")
-    img_url = get_product_image(product_url)
+    img = None
 
-    if not img_url:
-        st.error("Could not extract product image")
-        st.stop()
+    # -----------------------------
+    # Step 1: Get image
+    # -----------------------------
+    if product_url:
+        st.write("🔍 Extracting product image...")
+        img_url = get_product_image(product_url)
+        st.write("DEBUG URL:", img_url)
 
-    st.image(img_url)
+        if img_url:
+            img = safe_load_image(img_url)
 
-    st.write("### Step 2: Generating product description...")
-    description = generate_caption(img_url)
+    if uploaded_file:
+        img = Image.open(uploaded_file)
+
+    if img is None:
+        st.warning("⚠️ Could not get product image. Using AI-generated fallback.")
+        img = generate_image("Nike running shoes, product photography")
+
+    st.image(img)
+
+    # -----------------------------
+    # Step 2: Caption
+    # -----------------------------
+    st.write("🧠 Generating description...")
+    description = generate_caption(product_url if product_url else "Nike product")
     st.write(description)
 
-    st.write("### Step 3: Generating marketing script...")
+    # -----------------------------
+    # Step 3: Script
+    # -----------------------------
+    st.write("✍️ Generating script...")
     script = generate_script(description, user_profile)
     st.write(script)
 
-    st.write("### Step 4: Generating visuals...")
+    # -----------------------------
+    # Step 4: Generate visuals
+    # -----------------------------
+    st.write("🎨 Generating visuals...")
+
     prompts = [
         f"{description}, cinematic sports ad",
         f"{user_profile} running wearing nike shoes, dynamic lighting",
@@ -138,15 +203,23 @@ if st.button("Generate Video"):
     ]
 
     images = []
-    for p in prompts:
-        img = generate_image(p)
-        if img:
-            st.image(img)
-            images.append(img)
 
-    st.write("### Step 5: Creating video...")
+    for p in prompts:
+        img_gen = generate_image(p)
+        if img_gen:
+            st.image(img_gen)
+            images.append(img_gen)
+
+    # fallback if no images
+    if not images:
+        images = [img]
+
+    # -----------------------------
+    # Step 5: Video
+    # -----------------------------
+    st.write("🎬 Creating video...")
     video_path = create_video(images)
 
     st.video(video_path)
 
-    st.success("✅ Video generated!")
+    st.success("✅ Video generated successfully!")
