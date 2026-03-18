@@ -36,7 +36,7 @@ if HF_API_KEY is None:
 # HF API CALL
 # -----------------------------
 def query_hf(model, payload):
-    API_URL = f"https://api-inference.huggingface.co/models/{model}"
+    API_URL = f"https://router.huggingface.co/models/{model}"
     headers = {"Authorization": f"Bearer {HF_API_KEY}"}
     response = requests.post(API_URL, headers=headers, json=payload)
     return response
