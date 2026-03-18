@@ -1,10 +1,4 @@
-streamlit==1.38.0
-transformers==4.45.2
-diffusers==0.30.3
-accelerate==0.33.0
-torch==2.4.1
-torchvision==0.20.0
-Pillow==10.4.0
-numpy==1.26.4
-safetensors==0.4.5
-huggingface_hub==0.25.2
+streamlit
+requests
+moviepy
+Pillow
