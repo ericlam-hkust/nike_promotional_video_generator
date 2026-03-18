@@ -6,28 +6,26 @@ from bs4 import BeautifulSoup
 import tempfile
 import os
 import imageio_ffmpeg
-
-# Fix ffmpeg for Streamlit Cloud
-os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
-
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
+# Fix ffmpeg
+os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
+
 # -----------------------------
-# API Key Handling (robust)
+# API KEY
 # -----------------------------
 HF_API_KEY = None
-
 if "HF_API_KEY" in st.secrets:
     HF_API_KEY = st.secrets["HF_API_KEY"]
 else:
     HF_API_KEY = os.getenv("HF_API_KEY")
 
 if HF_API_KEY is None:
-    st.error("❌ Hugging Face API key not found.")
+    st.error("❌ Missing Hugging Face API Key")
     st.stop()
 
 # -----------------------------
-# Hugging Face API helper
+# HF API helper
 # -----------------------------
 def query_hf(model, payload):
     API_URL = f"https://api-inference.huggingface.co/models/{model}"
@@ -36,7 +34,7 @@ def query_hf(model, payload):
     return response
 
 # -----------------------------
-# Extract product image safely
+# IMAGE EXTRACTION
 # -----------------------------
 def get_product_image(url):
     try:
@@ -56,50 +54,47 @@ def get_product_image(url):
     except:
         return None
 
-# -----------------------------
-# Safe image loader (NO CRASH)
-# -----------------------------
 def safe_load_image(url):
     try:
         res = requests.get(url, timeout=10)
         res.raise_for_status()
-        img = Image.open(BytesIO(res.content))
-        return img
+        return Image.open(BytesIO(res.content))
     except:
         return None
 
 # -----------------------------
-# Image caption (BLIP)
+# IMAGE → DESCRIPTION (BLIP)
 # -----------------------------
 def generate_caption(image_url):
     payload = {"inputs": image_url}
     res = query_hf("Salesforce/blip-image-captioning-base", payload)
-
     try:
         return res.json()[0]["generated_text"]
     except:
-        return "A stylish Nike product"
+        return "A high-performance Nike product"
 
 # -----------------------------
-# Generate marketing script
+# STORYLINE GENERATION (LLM)
 # -----------------------------
-def generate_script(description, user_profile):
+def generate_storyline(description, user_profile):
     prompt = f"""
-    Create a 15-second Nike-style ad.
+    You are a Nike marketing expert.
 
     Product: {description}
     Audience: {user_profile}
 
-    Output:
-    - Hook
-    - Scene 1
-    - Scene 2
-    - Call to action
+    Create a cinematic promotional storyline.
+
+    Output format:
+    Scene 1:
+    Scene 2:
+    Scene 3:
+    Final slogan:
     """
 
     payload = {
         "inputs": prompt,
-        "parameters": {"max_new_tokens": 150}
+        "parameters": {"max_new_tokens": 200}
     }
 
     res = query_hf("mistralai/Mistral-7B-Instruct-v0.2", payload)
@@ -107,10 +102,23 @@ def generate_script(description, user_profile):
     try:
         return res.json()[0]["generated_text"]
     except:
-        return "Just do it. Experience the next level of performance."
+        return "Scene 1: Athlete starts running\nScene 2: Close-up shoes\nScene 3: Victory moment\nFinal slogan: Just Do It"
 
 # -----------------------------
-# Generate image (Stable Diffusion)
+# PARSE STORY INTO SCENES
+# -----------------------------
+def extract_scenes(story):
+    lines = story.split("\n")
+    scenes = []
+
+    for line in lines:
+        if "Scene" in line:
+            scenes.append(line.split(":")[-1].strip())
+
+    return scenes[:3]  # limit to 3 scenes
+
+# -----------------------------
+# IMAGE GENERATION (SD)
 # -----------------------------
 def generate_image(prompt):
     payload = {"inputs": prompt}
@@ -121,7 +129,7 @@ def generate_image(prompt):
     return None
 
 # -----------------------------
-# Create video (stable version)
+# VIDEO CREATION
 # -----------------------------
 def create_video(images):
     temp_files = []
@@ -141,30 +149,27 @@ def create_video(images):
 # -----------------------------
 # UI
 # -----------------------------
-st.title("🏃 AI Marketing Video Generator")
+st.title("🎬 AI Personalized Marketing Video Generator")
 
 product_url = st.text_input("Nike Product URL (optional)")
 uploaded_file = st.file_uploader("OR upload product image")
 
-name = st.text_input("User Name")
+name = st.text_input("Name")
 age = st.slider("Age", 10, 60, 25)
 gender = st.selectbox("Gender", ["Male", "Female"])
 nationality = st.text_input("Nationality")
 
-if st.button("Generate Video"):
+if st.button("Generate Marketing Video"):
 
     user_profile = f"{age} year old {gender} from {nationality} named {name}"
 
+    # -----------------------------
+    # GET IMAGE
+    # -----------------------------
     img = None
 
-    # -----------------------------
-    # Step 1: Get image
-    # -----------------------------
     if product_url:
-        st.write("🔍 Extracting product image...")
         img_url = get_product_image(product_url)
-        st.write("DEBUG URL:", img_url)
-
         if img_url:
             img = safe_load_image(img_url)
 
@@ -172,54 +177,51 @@ if st.button("Generate Video"):
         img = Image.open(uploaded_file)
 
     if img is None:
-        st.warning("⚠️ Could not get product image. Using AI-generated fallback.")
-        img = generate_image("Nike running shoes, product photography")
+        st.warning("⚠️ Using fallback AI image")
+        img = generate_image("Nike running shoes product photo")
 
     st.image(img)
 
     # -----------------------------
-    # Step 2: Caption
+    # DESCRIPTION
     # -----------------------------
-    st.write("🧠 Generating description...")
+    st.write("🧠 Understanding product...")
     description = generate_caption(product_url if product_url else "Nike product")
     st.write(description)
 
     # -----------------------------
-    # Step 3: Script
+    # STORYLINE
     # -----------------------------
-    st.write("✍️ Generating script...")
-    script = generate_script(description, user_profile)
-    st.write(script)
+    st.write("✍️ Generating storyline...")
+    story = generate_storyline(description, user_profile)
+    st.text(story)
 
     # -----------------------------
-    # Step 4: Generate visuals
+    # SCENES
     # -----------------------------
-    st.write("🎨 Generating visuals...")
+    scenes = extract_scenes(story)
 
-    prompts = [
-        f"{description}, cinematic sports ad",
-        f"{user_profile} running wearing nike shoes, dynamic lighting",
-        "close-up nike shoes, dramatic lighting"
-    ]
+    st.write("🎨 Generating scenes...")
 
-    images = []
+    generated_images = []
 
-    for p in prompts:
-        img_gen = generate_image(p)
+    for scene in scenes:
+        prompt = f"{scene}, cinematic nike advertisement, dramatic lighting"
+        img_gen = generate_image(prompt)
+
         if img_gen:
             st.image(img_gen)
-            images.append(img_gen)
+            generated_images.append(img_gen)
 
-    # fallback if no images
-    if not images:
-        images = [img]
+    if not generated_images:
+        generated_images = [img]
 
     # -----------------------------
-    # Step 5: Video
+    # VIDEO
     # -----------------------------
     st.write("🎬 Creating video...")
-    video_path = create_video(images)
+    video_path = create_video(generated_images)
 
     st.video(video_path)
 
-    st.success("✅ Video generated successfully!")
+    st.success("✅ Done!")
