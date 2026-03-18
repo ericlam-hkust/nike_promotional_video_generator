@@ -140,10 +140,10 @@ Generate:
     }
 
     # 🔥 BEST MODEL (if available)
-    model = "meta-llama/Meta-Llama-3-70B-Instruct"
+    # model = "meta-llama/Meta-Llama-3-70B-Instruct"
 
     # fallback if rate limited:
-    # model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 
     res = query_hf(model, payload)
 
