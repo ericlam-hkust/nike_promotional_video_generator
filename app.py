@@ -1,169 +1,148 @@
-# app.py
 import streamlit as st
-import torch
-from diffusers import AnimateDiffPipeline, MotionAdapter, EulerDiscreteScheduler
-from diffusers.utils import export_to_gif
-from transformers import BlipProcessor, BlipForConditionalGeneration, pipeline
+import requests
 from PIL import Image
-import os
-from huggingface_hub import hf_hub_download
-from safetensors.torch import load_file
-import traceback
+from io import BytesIO
+from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip
+import tempfile
 
-st.set_page_config(page_title="Light Nike/PUMA Promo Video", layout="wide")
-st.title("Lightweight Personalised Promo Video Generator")
-st.markdown("Runs on free Streamlit Cloud (CPU only – very memory constrained)")
+HF_API_KEY = st.secrets["HF_API_KEY"]
 
-# ────────────────────────────────────────────────
-#  LOAD MODELS – as light as possible
-# ────────────────────────────────────────────────
-@st.cache_resource(show_spinner="Loading very light models… (this can take 1–3 min first time)")
-def load_light_models():
-    device = "cpu"
-    dtype = torch.float32
+# -----------------------------
+# Hugging Face API helper
+# -----------------------------
+def query_hf(model, payload):
+    API_URL = f"https://api-inference.huggingface.co/models/{model}"
+    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response
 
+# -----------------------------
+# Extract product image (simple)
+# -----------------------------
+def get_product_image(url):
     try:
-        # 1. Very small BLIP for product caption
-        processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-        blip_model = BlipForConditionalGeneration.from_pretrained(
-            "Salesforce/blip-image-captioning-base"
-        ).to(device)
+        html = requests.get(url).text
+        # naive extraction
+        start = html.find('property="og:image" content="') + 35
+        end = html.find('"', start)
+        img_url = html[start:end]
+        return img_url
+    except:
+        return None
 
-        # 2. Tiny LLM – 0.5B version
-        llm = pipeline(
-            "text-generation",
-            model="Qwen/Qwen2-0.5B-Instruct",
-            torch_dtype=dtype,
-            device=device,
-            trust_remote_code=True
-        )
+# -----------------------------
+# Image caption (BLIP)
+# -----------------------------
+def generate_caption(image_url):
+    payload = {"inputs": image_url}
+    res = query_hf("Salesforce/blip-image-captioning-base", payload)
+    return res.json()[0]["generated_text"]
 
-        # 3. AnimateDiff Lightning – 4 step (fastest & lightest video model)
-        adapter_repo = "ByteDance/AnimateDiff-Lightning"
-        adapter_file = "animatediff_lightning_4step_diffusers.safetensors"
+# -----------------------------
+# Generate marketing script (LLM)
+# -----------------------------
+def generate_script(description, user_profile):
+    prompt = f"""
+    Create a 15-second Nike-style ad.
 
-        adapter = MotionAdapter().to(device, dtype)
-        state_dict = load_file(hf_hub_download(adapter_repo, adapter_file), device=device)
-        adapter.load_state_dict(state_dict)
+    Product: {description}
+    Audience: {user_profile}
 
-        pipe = AnimateDiffPipeline.from_pretrained(
-            "runwayml/stable-diffusion-v1-5",
-            motion_adapter=adapter,
-            torch_dtype=dtype,
-        ).to(device)
+    Output:
+    - Hook
+    - Scene 1
+    - Scene 2
+    - Call to action
+    """
 
-        pipe.scheduler = EulerDiscreteScheduler.from_config(
-            pipe.scheduler.config,
-            timestep_spacing="trailing",
-            beta_schedule="linear"
-        )
+    payload = {
+        "inputs": prompt,
+        "parameters": {"max_new_tokens": 150}
+    }
 
-        return processor, blip_model, llm, pipe
+    res = query_hf("mistralai/Mistral-7B-Instruct-v0.2", payload)
+    return res.json()[0]["generated_text"]
 
-    except Exception as e:
-        st.error(f"Model loading failed:\n{str(e)}")
-        st.error(traceback.format_exc())
-        return None, None, None, None
+# -----------------------------
+# Generate images (Stable Diffusion)
+# -----------------------------
+def generate_image(prompt):
+    payload = {"inputs": prompt}
+    res = query_hf("stabilityai/stable-diffusion-2", payload)
 
+    if res.status_code == 200:
+        return Image.open(BytesIO(res.content))
+    else:
+        return None
 
-processor, blip_model, llm_pipe, video_pipe = load_light_models()
+# -----------------------------
+# Create video from images
+# -----------------------------
+def create_video(images):
+    clips = []
+    for img in images:
+        temp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        img.save(temp_img.name)
 
-if video_pipe is None:
-    st.stop()
+        clip = ImageClip(temp_img.name).set_duration(3)
+        clips.append(clip)
 
-# ────────────────────────────────────────────────
-#  UI
-# ────────────────────────────────────────────────
-col1, col2 = st.columns([1, 1.5])
+    video = concatenate_videoclips(clips, method="compose")
 
-with col1:
-    uploaded_file = st.file_uploader("Upload shoe image", type=["jpg", "jpeg", "png"])
+    temp_video = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    video.write_videofile(temp_video.name, fps=24)
 
-with col2:
-    user_profile = st.text_area(
-        "User description / profile",
-        value="25-year-old trail runner, loves mountains, prefers bold colours",
-        height=120
-    )
-    product_name = st.text_input("Product name (optional)", "PUMA Velocity Nitro")
+    return temp_video.name
 
-if st.button("Generate short promo GIF", type="primary", disabled=not uploaded_file):
-    if not user_profile.strip():
-        st.warning("Please enter some user profile information")
+# -----------------------------
+# Streamlit UI
+# -----------------------------
+st.title("🏃 AI Nike Marketing Video Generator")
+
+product_url = st.text_input("Nike Product URL")
+name = st.text_input("User Name")
+age = st.slider("Age", 10, 60, 25)
+gender = st.selectbox("Gender", ["Male", "Female"])
+nationality = st.text_input("Nationality")
+
+if st.button("Generate Video"):
+
+    user_profile = f"{age} year old {gender} from {nationality} named {name}"
+
+    st.write("### Step 1: Extracting product image...")
+    img_url = get_product_image(product_url)
+
+    if not img_url:
+        st.error("Could not extract product image")
         st.stop()
 
-    with st.spinner("1/3 – Captioning product image …"):
-        try:
-            image = Image.open(uploaded_file).convert("RGB")
-            inputs = processor(image, return_tensors="pt").to(blip_model.device)
-            out = blip_model.generate(**inputs, max_new_tokens=40)
-            caption = processor.decode(out[0], skip_special_tokens=True).strip()
-            st.success(f"Detected: {caption}")
-        except Exception as e:
-            st.error(f"Image captioning failed: {e}")
-            st.stop()
+    st.image(img_url)
 
-    with st.spinner("2/3 – Creating personalised prompt …"):
-        try:
-            template = f"""Create ONE short, dynamic marketing video prompt for this shoe: {caption} ({product_name}).
-User: {user_profile}.
-Style: energetic sports commercial, athlete wearing the shoe, cinematic, bold.
-Output ONLY the prompt text. Max 60 words."""
+    st.write("### Step 2: Generating product description...")
+    description = generate_caption(img_url)
+    st.write(description)
 
-            response = llm_pipe(
-                template,
-                max_new_tokens=100,
-                temperature=0.7,
-                do_sample=True,
-                num_return_sequences=1
-            )[0]["generated_text"]
+    st.write("### Step 3: Generating marketing script...")
+    script = generate_script(description, user_profile)
+    st.write(script)
 
-            # crude extraction
-            prompt = response.split("Output ONLY")[-1].strip() if "Output ONLY" in response else response.strip()
-            prompt = prompt[:250]  # safety limit
-            st.caption("Generated prompt:")
-            st.info(prompt)
-        except Exception as e:
-            st.error(f"Prompt generation failed: {e}")
-            st.stop()
+    st.write("### Step 4: Generating visuals...")
+    prompts = [
+        f"{description}, cinematic sports ad",
+        f"{user_profile} running wearing nike shoes, dynamic lighting",
+        "close-up nike shoes, dramatic lighting"
+    ]
 
-    with st.spinner("3/3 – Generating animated GIF (4-step Lightning – ~20–90 sec on CPU) …"):
-        try:
-            # Keep resolution low to save memory
-            result = video_pipe(
-                prompt=prompt,
-                num_inference_steps=4,
-                guidance_scale=1.0,
-                num_frames=16,
-                height=320,
-                width=320
-            )
+    images = []
+    for p in prompts:
+        img = generate_image(p)
+        if img:
+            st.image(img)
+            images.append(img)
 
-            os.makedirs("output", exist_ok=True)
-            gif_path = "output/promo.gif"
+    st.write("### Step 5: Creating video...")
+    video_path = create_video(images)
 
-            export_to_gif(result.frames[0], gif_path)
+    st.video(video_path)
 
-            st.success("GIF created!")
-            st.image(gif_path, caption="Personalised promo animation", use_column_width=True)
-
-            with open(gif_path, "rb") as f:
-                st.download_button(
-                    label="Download GIF",
-                    data=f,
-                    file_name="personalised_puma_nike_promo.gif",
-                    mime="image/gif"
-                )
-
-        except Exception as e:
-            st.error("Video generation failed – most likely out of memory")
-            st.error(str(e))
-            if "memory" in str(e).lower() or "alloc" in str(e).lower():
-                st.info("→ Try reducing height/width even more or use fewer frames (edit code).")
-            st.error(traceback.format_exc())
-
-st.markdown("---")
-st.caption(
-    "Very light stack: Qwen2-0.5B + BLIP-base + AnimateDiff-Lightning-4step\n"
-    "Still memory-intensive – if it crashes → try Hugging Face Spaces (free CPU/GPU)"
-)
+    st.success("✅ Video generated!")
