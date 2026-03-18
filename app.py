@@ -4,6 +4,20 @@ from PIL import Image
 from io import BytesIO
 from bs4 import BeautifulSoup
 import os
+import time
+
+def query_with_retry(model, payload):
+    for _ in range(5):
+        res = query_hf(model, payload)
+        data = res.json()
+
+        if isinstance(data, list):
+            return data
+
+        if "loading" in str(data):
+            time.sleep(6)
+
+    return None
 
 # -----------------------------
 # API KEY SETUP
@@ -146,7 +160,7 @@ Generate:
     # model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
     model = "HuggingFaceH4/zephyr-7b-beta"
 
-    res = query_hf(model, payload)
+    res = query_with_retry(model, payload)
 
     try:
         return res.json()[0]["generated_text"]
