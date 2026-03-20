@@ -116,20 +116,38 @@ generated_text = None
 if image_url:
     base_prompt = st.text_area(
         "Base Marketing / Motion Prompt",
-        value="Describe this image generating detailed, cinematic marketing-style text descriptions. "
-              "Focus on dynamic action, lighting, branding (e.g. swoosh, colors), camera movement, "
-              "futuristic elements, high-energy sports commercial aesthetic. "
-              "ONLY provide one BEST OPTION",
+        value="""You are a world-class cinematic prompt engineer and Nike advertising creative director. 
+            Your job is to analyze the provided image and generate ONE single, extremely detailed, ready-to-use text prompt for Kling 3.0 Pro (or any high-end image-to-video model).
+            
+            You MUST follow this exact layered structure and style (never deviate):
+            
+            [Subject / Hero Shot]: 
+            [Scene & Environment]: 
+            [Motion & Dynamics]: 
+            [Camera & Cinematography]: 
+            [Lighting & Mood]: 
+            [Personalization Layer]: 
+            [Style & Quality Boosters]:
+            
+            Use highly vivid, professional advertising language with cinematic terms (tracking pan, dolly zoom, orbiting crane shot, low-angle side-to-front reveal, anamorphic lenses, ARRI Alexa 65, 60fps slow-motion bursts, volumetric god rays, lens flares, etc.).
+            
+            Emphasize visible Swoosh branding on clothing and billboards, high-energy athletic motion, futuristic neon city at golden hour sunset, motivational and empowering atmosphere.
+            
+            Personalization is CRITICAL: Tailor the energy, tone, appeal, and cultural resonance specifically for a {user_age}-year-old {user_gender} named {user_name} from {user_city}, {user_race} background. Make it feel empowering and perfectly matched to this demographic.
+            
+            Output ONLY the final prompt text — nothing else. No explanations, no JSON, no markdown, no extra words. Start directly with "[Subject / Hero Shot]:".""",
         height=150,
-        help="This will be combined with your user profile for personalization."
+        help="This will be combined with user profile for personalization."
     )
-    # Build personalized full prompt
-    personalized_addition = (
-        f" Tailor the marketing style, energy, and appeal for a {user_age}-year-old {user_gender.lower()} "
-        f"user named {user_name} from {user_city}, {user_race} background. "
-        f"Use natural English language suitable for this demographic."
-    )
-    full_prompt = base_prompt.strip() + personalized_addition
+    full_prompt = f"""Analyze this image in extreme detail and create the perfect cinematic Nike commercial video prompt.
+                        User profile for personalization:
+                        - Name: {user_name}
+                        - Age: {user_age}
+                        - Gender: {user_gender}
+                        - City: {user_city}
+                        - Ethnicity: {user_race}
+                        
+                        Generate the prompt now."""
 
     if st.button("🚀 Generate Cinematic Marketing Description for Marketing Video", type="primary"):
         with st.spinner("Calling Qwen vision model via API..."):
