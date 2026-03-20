@@ -22,7 +22,7 @@ st.caption("Upload Nike image + prompt → ~5s 720p promo video | Commercial use
 # ================== SIDEBAR SETTINGS ==================
 with st.sidebar:
     st.header("⚙️ Generation Settings")
-    st.info("Model: fal-ai/wan/v2.2-5b/image-to-video")
+    st.info("Model: fal-ai/kling-video/v3/pro/image-to-video")
     num_frames = st.slider("Number of frames", 17, 161, 161, help="~81 frames ≈ 3-4 seconds at 24 fps")
     fps = st.slider("Frames per second", 4, 60, 10)
     resolution = st.selectbox("Resolution", ["720p", "580p"], index=0)
