@@ -7,30 +7,31 @@ from PIL import Image
 import base64
 import io
 
-# fal-client reads FAL_KEY from environment automatically
+# Set FAL_KEY from secrets (fal-client reads from env)
 if "FAL_KEY" in st.secrets:
     os.environ["FAL_KEY"] = st.secrets["FAL_KEY"]
 else:
     st.error("❌ FAL_KEY not found in .streamlit/secrets.toml or Streamlit app secrets.")
     st.stop()
 
-st.set_page_config(page_title="Nike Video Generator (fal.ai)", page_icon="🏃", layout="wide")
-st.title("🏃 Nike Commercial Video Generator")
-st.subheader("kling-video/v3/pro/image-to-video via fal.ai • Cloud-based, no local GPU!")
-st.caption("Upload Nike image + prompt → ~15s 1080p promo video | Commercial use allowed")
+st.set_page_config(page_title="Nike Video Generator (Kling 3.0 Pro)", page_icon="🏃", layout="wide")
+st.title("🏃 Nike Commercial Video Generator – Kling 3.0 Pro")
+st.subheader("High-quality 1080p Image-to-Video via fal.ai • No local GPU!")
+st.caption("Kling 3.0 Pro: Cinematic motion, fluid dynamics, strong prompt adherence | Up to 15s clips | Commercial use OK")
 
 # ================== SIDEBAR SETTINGS ==================
 with st.sidebar:
     st.header("⚙️ Generation Settings")
-    st.info("Model: fal-ai/kling-video/v3/pro/image-to-video")
-    num_frames = st.slider("Number of frames", 17, 161, 161, help="~81 frames ≈ 3-4 seconds at 24 fps")
-    fps = st.slider("Frames per second", 4, 60, 10)
-    resolution = st.selectbox("Resolution", ["1080p", "720p", "580p"], index=0)
-    guidance_scale = st.slider("Guidance scale", 1.0, 10.0, 3.5, 0.5)
-    negative_prompt = st.text_area("Negative prompt (optional)", 
-                                   value="blurry, low quality, artifacts, deformed, static, text, watermark, ugly",
+    st.info("Model: fal-ai/kling-video/v3/pro/image-to-video\n"
+            "Output: Up to 1080p native in Pro mode\n"
+            "Generation: ~60–300 seconds | Cost: ~$0.10–0.30 per clip")
+    
+    duration = st.slider("Duration (seconds)", 3, 15, 10, help="Kling 3.0 Pro supports 3–15s; higher = more cost")
+    aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0, help="16:9 for cinematic promo")
+    cfg_scale = st.slider("Guidance Scale (CFG)", 0.1, 10.0, 3.0, 0.5, help="Higher = stricter prompt following; 2.5–5.0 often best for motion")
+    negative_prompt = st.text_area("Negative Prompt (avoid these)", 
+                                   value="blurry, low quality, artifacts, deformed, static, text, watermark, ugly, distorted, overexposed",
                                    height=100)
-    st.caption("Generation time: ~30–150 seconds | Cost: low (~$0.05–0.30)")
 
 # ================== MAIN UI ==================
 uploaded_file = st.file_uploader("Upload starting Nike image (product, athlete, logo, etc.)", 
@@ -41,43 +42,41 @@ if uploaded_file:
 
 prompt = st.text_area(
     "Marketing / Motion Prompt",
-    value="Dynamic Nike athlete sprinting powerfully through a futuristic neon city at golden hour, energetic swoosh branding visible, cinematic sports commercial style, high energy motion, smooth dramatic camera pan and follow, professional advertising look, intense lighting",
+    value="Dynamic Nike athlete powerfully sprinting forward through a futuristic neon-lit city at golden hour sunset, energetic visible swoosh branding on clothing and billboards, cinematic sports commercial style, high-energy fluid motion, smooth dramatic tracking camera pan and follow shot, professional advertising look, intense dramatic lighting, high detail",
     height=150
 )
 
-if st.button("🚀 Generate Nike Promo Video", type="primary"):
+if st.button("🚀 Generate Nike Promo Video (Kling 3.0 Pro)", type="primary"):
     if not uploaded_file:
         st.error("Please upload a starting Nike image first.")
         st.stop()
 
-    with st.spinner("Encoding image + generating on fal.ai cloud... (30–150 seconds)"):
+    with st.spinner("Encoding image + generating high-quality video on fal.ai... (1–5 minutes)"):
         try:
-            # Convert image to base64 data URL
+            # Convert image to base64 data URL (JPEG for compatibility/size)
             buffered = io.BytesIO()
-            # Convert to JPEG for smaller size / better compatibility
             image.convert("RGB").save(buffered, format="JPEG")
             img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
             image_data_url = f"data:image/jpeg;base64,{img_base64}"
 
-            # Run the model
+            # Run Kling 3.0 Pro I2V
             result = fal.subscribe(
-                "fal-ai/wan/v2.2-5b/image-to-video",
+                "fal-ai/kling-video/v3/pro/image-to-video",
                 arguments={
-                    "image_url": image_data_url,
                     "prompt": prompt,
-                    "num_frames": num_frames,
-                    "frames_per_second": fps,
-                    "resolution": resolution.lower(),
+                    "start_image_url": image_data_url,  # Kling uses start_image_url for I2V
+                    "duration": str(duration),          # Must be string per schema
+                    "aspect_ratio": aspect_ratio,
                     "negative_prompt": negative_prompt,
-                    "guidance_scale": guidance_scale,
-                    # Add more if desired (see model API docs):
-                    # "seed": 42,
-                    # "enable_safety_checker": True,
-                    # "video_quality": "high",
-                }
+                    "cfg_scale": cfg_scale,
+                    # Optional extras (uncomment if needed):
+                    # "enable_audio": False,  # Kling Pro can generate native audio if True
+                    # "mode": "professional",  # Some variants support modes
+                },
+                timeout=600,  # 10 min max for longer/higher-quality gens
             )
 
-            # Extract video URL from result
+            # Extract video URL (Kling returns dict with 'video' → {'url': ...})
             video_url = None
             if isinstance(result, dict):
                 video_data = result.get("video", {})
@@ -86,26 +85,26 @@ if st.button("🚀 Generate Nike Promo Video", type="primary"):
                 video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
 
             if not video_url:
-                st.error("No video URL found in response.")
-                st.json(result)  # Show full output for debugging
+                st.error("No valid video URL returned. Check fal.ai dashboard/logs.")
+                st.json(result)  # Debug: full response
                 st.stop()
 
         except Exception as e:
-            st.error(f"fal.ai generation failed: {str(e)}")
+            st.error(f"fal.ai / Kling generation failed: {str(e)}")
             st.stop()
 
-    st.success("✅ Nike commercial video ready!")
+    st.success("✅ High-quality Nike commercial video generated with Kling 3.0 Pro!")
     st.video(video_url)
 
     # Download button
     try:
-        video_response = requests.get(video_url, timeout=30)
+        video_response = requests.get(video_url, timeout=60)
         video_response.raise_for_status()
         st.download_button(
-            label="📥 Download MP4 for your master's project",
+            label="📥 Download 1080p MP4 for your project",
             data=video_response.content,
-            file_name="nike_promo_video_720p.mp4",
+            file_name=f"nike_kling_promo_{duration}s.mp4",
             mime="video/mp4"
         )
     except Exception as e:
-        st.warning("Video is playable above — right-click the player to save if download button fails.")
+        st.warning("Video playable above — right-click player to save if download fails.")
