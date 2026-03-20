@@ -149,7 +149,7 @@ if image_url:
                         
                         Generate the prompt now."""
 
-    if st.button("🚀 Generate Cinematic Marketing Description for Marketing Video", type="primary"):
+    if st.button("🚀 Generate Cinematic Marketing-style Script", type="primary"):
         with st.spinner("Calling Qwen3.5-35B-A3B model via API..."):
             try:
                 payload = {
@@ -192,7 +192,7 @@ if image_url:
                 st.json(result)
     
     if generated_text:
-        if st.button("🚀 Generate Promo Video (Kling 3.0 Pro)", type="primary"):
+        if st.button("🚀 Generate High-Qulaity Promo Video", type="primary"):
             with st.spinner("Encoding image + generating high-quality video on fal.ai... (1–5 minutes)"):
                 try:
                     # Convert PIL image to base64 data URL (JPEG for compatibility/size)
