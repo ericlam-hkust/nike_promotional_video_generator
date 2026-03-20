@@ -117,23 +117,21 @@ if image_url:
     base_prompt = st.text_area(
         "Base Marketing / Motion Prompt",
         value="Describe this image generating detailed, cinematic marketing-style text descriptions. "
-                  "Focus on dynamic action, lighting, branding (e.g. swoosh, colors), camera movement, "
-                  "futuristic elements, high-energy sports commercial aesthetic."
-                "ONLY provide one BEST OPTION",
+              "Focus on dynamic action, lighting, branding (e.g. swoosh, colors), camera movement, "
+              "futuristic elements, high-energy sports commercial aesthetic. "
+              "ONLY provide one BEST OPTION",
         height=150,
         help="This will be combined with your user profile for personalization."
     )
+    # Build personalized full prompt
+    personalized_addition = (
+        f" Tailor the marketing style, energy, and appeal for a {user_age}-year-old {user_gender.lower()} "
+        f"user named {user_name} from {user_city}, {user_race} background. "
+        f"Use natural English language suitable for this demographic."
+    )
+    full_prompt = base_prompt.strip() + personalized_addition
 
-    if st.button("🚀 Generate Personalized Nike Promo Video (Kling 3.0 Pro)", type="primary"):
-        # Build personalized full prompt
-        personalized_addition = (
-            f" Tailor the marketing style, energy, and appeal for a {user_age}-year-old {user_gender.lower()} "
-            f"user named {user_name} from {user_city}, {user_race} background. "
-            f"Use natural English language suitable for this demographic."
-        )
-        full_prompt = base_prompt.strip() + personalized_addition
-
-    if st.button("Generate Cinematic Marketing Description for Marketing Video", type="primary"):
+    if st.button("🚀 Generate Cinematic Marketing Description for Marketing Video", type="primary"):
         with st.spinner("Calling Qwen vision model via API..."):
             try:
                 payload = {
