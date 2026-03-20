@@ -6,6 +6,13 @@ import os
 from PIL import Image
 import time
 
+# Set the FAL_KEY as environment variable (fal-client reads this automatically)
+if "FAL_KEY" in st.secrets:
+    os.environ["FAL_KEY"] = st.secrets["FAL_KEY"]
+else:
+    st.error("❌ FAL_KEY not found in .streamlit/secrets.toml")
+    st.stop()
+
 st.set_page_config(page_title="Nike Video Generator (fal.ai)", page_icon="🏃", layout="wide")
 st.title("🏃 Nike Commercial Video Generator")
 st.subheader("Wan 2.2 5B Image-to-Video via fal.ai • No GPU needed!")
@@ -31,50 +38,49 @@ prompt = st.text_area(
 )
 
 if st.button("🚀 Generate Nike Promo Video", type="primary"):
-    if not st.secrets.get("FAL_KEY"):
-        st.error("❌ Add FAL_KEY to .streamlit/secrets.toml")
-        st.stop()
-
-    fal.config(credentials=st.secrets["FAL_KEY"])
-
     with st.spinner("Generating on fal.ai cloud... (30–120 seconds)"):
-        # Save image temporarily (fal accepts file-like or URL, but easiest with temp file)
+        # Save uploaded image temporarily
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp.write(uploaded_file.getvalue())
             image_path = tmp.name
 
-        # Run the model (subscribe pattern — waits for completion)
         try:
+            # Run the model (subscribe waits for completion)
             result = fal.subscribe(
                 "fal-ai/wan/v2.2-5b/image-to-video",
                 arguments={
-                    "image_url": None,  # We'll upload the file instead
                     "prompt": prompt,
-                    # Optional params (uncomment/adjust as needed):
+                    # Optional: add more if needed (check https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api)
+                    # "negative_prompt": "blurry, low quality, artifacts",
                     # "num_frames": 121,
                     # "fps": 24,
-                    # "negative_prompt": "blurry, low quality, deformed, static",
                 },
                 files={
                     "image": open(image_path, "rb"),  # Uploads your Nike image
                 },
-                # Optional: timeout longer if needed
-                timeout=300,
+                timeout=300,  # 5 min timeout
             )
 
-            # Cleanup temp file
+            # Cleanup
             os.unlink(image_path)
 
-            # fal result usually has 'video' key with URL
-            video_url = result.get("video", {}).get("url") if isinstance(result, dict) else result[0].get("url") if isinstance(result, list) else None
+            # Extract video URL from result (fal returns dict with 'video' key usually)
+            if isinstance(result, dict):
+                video_url = result.get("video", {}).get("url")
+            elif isinstance(result, list) and result:
+                video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
+            else:
+                video_url = None
 
             if not video_url:
-                st.error("No video URL in response. Check fal dashboard/logs.")
-                st.json(result)  # Debug: show full response
+                st.error("No valid video URL returned. Check fal.ai dashboard for logs.")
+                st.json(result)  # Show full response for debug
                 st.stop()
 
         except Exception as e:
-            st.error(f"fal.ai error: {str(e)}")
+            st.error(f"fal.ai generation failed: {str(e)}")
+            if os.path.exists(image_path):
+                os.unlink(image_path)
             st.stop()
 
     st.success("✅ Nike commercial video generated!")
@@ -89,5 +95,5 @@ if st.button("🚀 Generate Nike Promo Video", type="primary"):
             file_name="nike_commercial_720p.mp4",
             mime="video/mp4"
         )
-    except:
-        st.warning("Video ready — right-click the player above to save, or check fal dashboard.")
+    except Exception as e:
+        st.warning(f"Video ready (player above) — right-click to save manually if download fails. ({str(e)})")
