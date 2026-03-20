@@ -112,7 +112,7 @@ elif input_method == "Provide direct URL":
 # ────────────────────────────────────────────────
 #   Only proceed with prompt + generation if we have image input
 # ────────────────────────────────────────────────
-full_prompt = None
+generated_text = None
 if image_url:
     base_prompt = st.text_area(
         "Base Marketing / Motion Prompt",
