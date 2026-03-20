@@ -259,7 +259,7 @@ if image_url:
                 st.json(result)
 
 if "model_info" not in st.session_state:
-    st.session_state.model_info = ""
+    st.session_state.model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)"
 
 def update_model_info():
     if st.session_state.model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
