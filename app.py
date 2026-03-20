@@ -112,11 +112,14 @@ elif input_method == "Provide direct URL":
 # ────────────────────────────────────────────────
 #   Only proceed with prompt + generation if we have image input
 # ────────────────────────────────────────────────
-generated_text = None
+full_prompt = None
 if image_url:
     base_prompt = st.text_area(
         "Base Marketing / Motion Prompt",
-        value="Dynamic Nike athlete powerfully sprinting forward through a futuristic neon-lit city at golden hour sunset, energetic visible swoosh branding on clothing and billboards, cinematic sports commercial style, high-energy fluid motion, smooth dramatic tracking camera pan and follow shot, professional advertising look, intense dramatic lighting, high detail",
+        value=value="Describe this image generating detailed, cinematic marketing-style text descriptions. "
+                  "Focus on dynamic action, lighting, branding (e.g. swoosh, colors), camera movement, "
+                  "futuristic elements, high-energy sports commercial aesthetic."
+                "ONLY provide one BEST OPTION",
         height=150,
         help="This will be combined with your user profile for personalization."
     )
