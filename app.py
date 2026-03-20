@@ -16,7 +16,7 @@ else:
 
 st.set_page_config(page_title="Nike Video Generator (fal.ai)", page_icon="🏃", layout="wide")
 st.title("🏃 Nike Commercial Video Generator")
-st.subheader("Wan 2.2 5B Image-to-Video via fal.ai • Cloud-based, no local GPU!")
+st.subheader("kling-video/v3/pro/image-to-video via fal.ai • Cloud-based, no local GPU!")
 st.caption("Upload Nike image + prompt → ~5s 720p promo video | Commercial use allowed")
 
 # ================== SIDEBAR SETTINGS ==================
@@ -25,7 +25,7 @@ with st.sidebar:
     st.info("Model: fal-ai/kling-video/v3/pro/image-to-video")
     num_frames = st.slider("Number of frames", 17, 161, 161, help="~81 frames ≈ 3-4 seconds at 24 fps")
     fps = st.slider("Frames per second", 4, 60, 10)
-    resolution = st.selectbox("Resolution", ["720p", "580p"], index=0)
+    resolution = st.selectbox("Resolution", ["1080p", "720p", "580p"], index=0)
     guidance_scale = st.slider("Guidance scale", 1.0, 10.0, 3.5, 0.5)
     negative_prompt = st.text_area("Negative prompt (optional)", 
                                    value="blurry, low quality, artifacts, deformed, static, text, watermark, ugly",
