@@ -57,7 +57,7 @@ if input_method == "Upload local file":
     if uploaded_file is not None:
         try:
             image = Image.open(uploaded_file)
-            st.image(image, caption="Uploaded image", use_column_width=True)
+            st.image(image, caption="Uploaded image", width=400)
 
             # Convert to base64 data URL
             buffered = io.BytesIO()
@@ -97,7 +97,7 @@ if image_url:
               "futuristic elements, high-energy sports commercial aesthetic.",
         height=120
     )
-    if st.button("Generate Cinematic Marketing Description", type="primary"):
+    if st.button("Generate Cinematic Marketing Description for Marketing Video", type="primary"):
         with st.spinner("Calling Qwen vision model via API..."):
             try:
                 payload = {
@@ -147,7 +147,7 @@ if image_url:
                 st.json(result)
     
     if generated_text:
-        if st.button("🚀 Generate Nike Promo Video (Kling 3.0 Pro)", type="primary"):
+        if st.button("🚀 Generate Promo Video (Kling 3.0 Pro)", type="primary"):
             with st.spinner("Encoding image + generating high-quality video on fal.ai... (1–5 minutes)"):
                 try:
                     # Convert PIL image to base64 data URL (JPEG for compatibility/size)
