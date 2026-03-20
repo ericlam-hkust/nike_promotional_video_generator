@@ -6,6 +6,7 @@ import os
 from PIL import Image
 import base64
 import io
+from huggingface_hub import InferenceClient
 
 # Set FAL_KEY from secrets (fal-client reads from env)
 if "FAL_KEY" in st.secrets:
@@ -193,39 +194,71 @@ if image_url:
                 st.json(result)
     
     if generated_text:
+        # --- Model selector ---
+        model_choice = st.radio(
+            "Choose video model",
+            options=[
+                "Wan-AI/Wan2.2-I2V-A14B (Hugging Face)",
+                "Kling 3.0 Pro (fal.ai)"
+            ],
+            index=0,
+            horizontal=True,
+        )
+
         if st.button("🚀 Generate High-Qulaity Promo Video", type="primary"):
-            with st.spinner("Encoding image + generating high-quality video on fal.ai... (1–5 minutes)"):
+            with st.spinner("Encoding image + generating high-quality video... (1–5 minutes)"):
                 try:
                     # Convert PIL image to base64 data URL (JPEG for compatibility/size)
                     buffered = io.BytesIO()
                     image.convert("RGB").save(buffered, format="JPEG")
                     img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
                     image_data_url = f"data:image/jpeg;base64,{img_base64}"
+
+                     video_url = None
+
+                    if model_choice == "Kling 3.0 Pro (fal.ai)":
+                        # Run Kling 3.0 Pro I2V
+                        result = fal.subscribe(
+                            "fal-ai/kling-video/v3/pro/image-to-video",
+                            arguments={
+                                "prompt": generated_text,
+                                "start_image_url": image_data_url,  # fal.ai Kling accepts data URLs / base64
+                                "duration": str(duration),          # Must be string
+                                "aspect_ratio": aspect_ratio,
+                                "negative_prompt": negative_prompt,
+                                "cfg_scale": cfg_scale,
+                                # Optional extras (uncomment if needed):
+                                # "enable_audio": False,
+                                # "mode": "professional",
+                                "mode": "professional"
+                            }
+                        )
+                        # Extract video URL (handle different possible response shapes)
+                        if isinstance(result, dict):
+                            video_data = result.get("video", {})
+                            video_url = video_data.get("url") if isinstance(video_data, dict) else result.get("video_url")
+                        elif isinstance(result, list) and result:
+                            video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
+                    elif model_choice == "Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
+                        client = InferenceClient(
+                            provider="fal-ai",
+                            api_key=st.secrets["HF_TOKEN"],  # or os.environ["HF_TOKEN"]
+                        )
+                        
+                        # Wan I2V usually expects an image input and prompt
+                        video = client.image_to_video(
+                            image=image_data_url,
+                            prompt=generated_text,
+                            model="Wan-AI/Wan2.2-I2V-A14B",
+                        )
     
-                    # Run Kling 3.0 Pro I2V
-                    result = fal.subscribe(
-                        "fal-ai/kling-video/v3/pro/image-to-video",
-                        arguments={
-                            "prompt": generated_text,
-                            "start_image_url": image_data_url,  # fal.ai Kling accepts data URLs / base64
-                            "duration": str(duration),          # Must be string
-                            "aspect_ratio": aspect_ratio,
-                            "negative_prompt": negative_prompt,
-                            "cfg_scale": cfg_scale,
-                            # Optional extras (uncomment if needed):
-                            # "enable_audio": False,
-                            # "mode": "professional",
-                            "mode": "professional"
-                        }
-                    )
-    
-                    # Extract video URL (handle different possible response shapes)
-                    video_url = None
-                    if isinstance(result, dict):
-                        video_data = result.get("video", {})
-                        video_url = video_data.get("url") if isinstance(video_data, dict) else result.get("video_url")
-                    elif isinstance(result, list) and result:
-                        video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
+                        # Depending on client output shape, normalize to URL
+                        if hasattr(video, "url"):
+                            video_url = video.url
+                        elif isinstance(video, dict):
+                            video_url = video.get("url")
+                        else:
+                            video_url = str(video)
     
                     if not video_url:
                         st.error("No valid video URL returned. Check fal.ai dashboard/logs.")
