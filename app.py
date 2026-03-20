@@ -283,11 +283,6 @@ if st.session_state.generated_text:
             st.subheader("Cinematic Script for Video Generation:")
             st.markdown(st.session_state.generated_text)
             try:
-                buffered = io.BytesIO()
-                image.convert("RGB").save(buffered, format="JPEG")
-                img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                image_data_url = f"data:image/jpeg;base64,{img_base64}"
-    
                 video_source = None
     
                 if st.session_state.model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
@@ -295,7 +290,7 @@ if st.session_state.generated_text:
                         "fal-ai/kling-video/v3/pro/image-to-video",
                         arguments={
                             "prompt": st.session_state.generated_text,
-                            "start_image_url": image_data_url,
+                            "start_image_url": image_url,
                             "duration": str(duration),
                             "aspect_ratio": aspect_ratio,
                             "negative_prompt": negative_prompt,
@@ -312,7 +307,7 @@ if st.session_state.generated_text:
                         api_key=st.secrets["HF_TOKEN"],
                     )
                     video = client.image_to_video(
-                        image=image_data_url,
+                        image=image_url,
                         prompt=st.session_state.generated_text,
                         negative_prompt=negative_prompt,
                         model="Wan-AI/Wan2.2-I2V-A14B",
