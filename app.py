@@ -116,8 +116,7 @@ generated_text = None
 if image_url:
     system_prompt = st.text_area(
         "Base Marketing / Motion Prompt",
-        value=f"""
-            You are a world-class cinematic prompt engineer and Nike advertising creative director.
+        value=f"""You are a world-class cinematic prompt engineer and Nike advertising creative director.
             
             Your job is to analyze the provided image and generate ONE single, extremely detailed, ready-to-use text prompt for high-end image-text-to-video model.
             
