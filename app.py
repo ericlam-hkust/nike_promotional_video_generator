@@ -17,7 +17,7 @@ else:
 st.set_page_config(page_title="Nike Video Generator (fal.ai)", page_icon="🏃", layout="wide")
 st.title("🏃 Nike Commercial Video Generator")
 st.subheader("kling-video/v3/pro/image-to-video via fal.ai • Cloud-based, no local GPU!")
-st.caption("Upload Nike image + prompt → ~5s 720p promo video | Commercial use allowed")
+st.caption("Upload Nike image + prompt → ~15s 1080p promo video | Commercial use allowed")
 
 # ================== SIDEBAR SETTINGS ==================
 with st.sidebar:
