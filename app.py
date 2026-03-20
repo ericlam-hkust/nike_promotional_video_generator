@@ -306,7 +306,7 @@ if st.session_state.generated_text:
                         api_key=st.secrets["HF_TOKEN"],
                     )
                     video = client.image_to_video(
-                        input_image=image_data_url
+                        input_image=image_data_url,
                         prompt=st.session_state.generated_text,
                         negative_prompt=negative_prompt,
                         model="Wan-AI/Wan2.2-I2V-A14B",
