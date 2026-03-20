@@ -285,8 +285,9 @@ if st.session_state.generated_text:
                     )
     
                     segments = []
-                    for i in range(3):  # 3 segments = 15s
-                        prompt_seg = f"{st.session_state.generated_text} [segment {i+1}/3]"
+                    num_clip = math.ceil(duration/5) # free model Wan2.2 only supports 5s per clip
+                    for i in range(num_clip):  # 3 segments = 15s
+                        prompt_seg = f"{st.session_state.generated_text} [segment {i+1}/num_clip]"
                         video_seg = client.image_to_video(
                             image=image_data_url if i == 0 else segments[-1],  # use previous segment as start image
                             prompt=prompt_seg,
