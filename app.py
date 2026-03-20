@@ -7,6 +7,48 @@ from PIL import Image
 import base64
 import io
 from huggingface_hub import InferenceClient
+from pathlib import Path
+
+def normalize_video_output(output):
+    if output is None:
+        return None
+
+    if isinstance(output, (str, Path)):
+        s = str(output)
+        if s.startswith("http://") or s.startswith("https://"):
+            return s
+        if Path(s).exists():
+            return s
+        return None
+
+    if isinstance(output, bytes):
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        tmp.write(output)
+        tmp.close()
+        return tmp.name
+
+    if hasattr(output, "read"):
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        tmp.write(output.read())
+        tmp.close()
+        return tmp.name
+
+    if hasattr(output, "url"):
+        return output.url
+
+    if isinstance(output, dict):
+        for k in ["url", "video_url", "file", "path"]:
+            v = output.get(k)
+            if isinstance(v, str) and v:
+                return v
+        data = output.get("video")
+        if isinstance(data, bytes):
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+            tmp.write(data)
+            tmp.close()
+            return tmp.name
+
+    return None
 
 # Set FAL_KEY from secrets (fal-client reads from env)
 if "FAL_KEY" in st.secrets:
@@ -201,8 +243,8 @@ if st.session_state.generated_text:
     model_choice = st.radio(
         "Choose video model",
         options=[
-            "Wan-AI/Wan2.2-I2V-A14B (Hugging Face)",
-            "Kling 3.0 Pro (fal.ai)"
+            "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)",
+            "PAID MODEL: Kling 3.0 Pro (fal.ai)"
         ],
         index=0,
         horizontal=True,
@@ -211,68 +253,58 @@ if st.session_state.generated_text:
     if st.button("🚀 Generate High-Quality Promo Video", type="primary"):
         with st.spinner("Encoding image + generating high-quality video... (1–5 minutes)"):
             try:
-                # Convert PIL image to base64 data URL (JPEG for compatibility/size)
                 buffered = io.BytesIO()
                 image.convert("RGB").save(buffered, format="JPEG")
                 img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
                 image_data_url = f"data:image/jpeg;base64,{img_base64}"
-
-                video_url = None
-
-                if model_choice == "Kling 3.0 Pro (fal.ai)":
-                    # Run Kling 3.0 Pro I2V
+    
+                video_source = None
+    
+                if model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
                     result = fal.subscribe(
                         "fal-ai/kling-video/v3/pro/image-to-video",
                         arguments={
                             "prompt": st.session_state.generated_text,
-                            "start_image_url": image_data_url,  # fal.ai Kling accepts data URLs / base64
-                            "duration": str(duration),          # Must be string
+                            "start_image_url": image_data_url,
+                            "duration": str(duration),
                             "aspect_ratio": aspect_ratio,
                             "negative_prompt": negative_prompt,
                             "cfg_scale": cfg_scale,
-                            # Optional extras (uncomment if needed):
-                            # "enable_audio": False,
-                            # "mode": "professional",
                             "mode": "professional"
                         }
                     )
-                    # Extract video URL (handle different possible response shapes)
-                    if isinstance(result, dict):
-                        video_data = result.get("video", {})
-                        video_url = video_data.get("url") if isinstance(video_data, dict) else result.get("video_url")
-                    elif isinstance(result, list) and result:
-                        video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
-                        
-                elif model_choice == "Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
+    
+                    video_source = normalize_video_output(result)
+    
+                elif model_choice == "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
                     client = InferenceClient(
                         provider="fal-ai",
-                        api_key=st.secrets["HF_TOKEN"],  # or os.environ["HF_TOKEN"]
+                        api_key=st.secrets["HF_TOKEN"],
                     )
-                    # Wan I2V usually expects an image input and prompt
+    
                     video = client.image_to_video(
                         image=image_data_url,
                         prompt=st.session_state.generated_text,
                         model="Wan-AI/Wan2.2-I2V-A14B",
                     )
-                    # Depending on client output shape, normalize to URL
-                    if hasattr(video, "url"):
-                        video_url = video.url
-                    elif isinstance(video, dict):
-                        video_url = video.get("url")
-                    else:
-                        video_url = str(video)
-
-                if not video_url:
-                    st.error("No valid video URL returned. Check fal.ai dashboard/logs.")
-                    st.json(result)  # Debug output
+    
+                    video_source = normalize_video_output(video)
+    
+                if not video_source:
+                    st.error("No playable video output returned.")
+                    st.write("Returned type:", type(result) if "result" in locals() else type(video))
                     st.stop()
-
+    
+                st.session_state.video_source = video_source
+    
             except Exception as e:
                 st.error(f"Video generation failed: {str(e)}")
                 st.stop()
+    
+            if st.session_state.get("video_source"):
+                st.success(f"✅ High-quality Nike commercial video generated with {model_choice}")
+                st.video(st.session_state.video_source)
 
-        st.success("✅ High-quality Nike commercial video generated with Kling 3.0 Pro!")
-        st.video(video_url)
 
         # Download button
         try:
