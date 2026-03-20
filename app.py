@@ -239,19 +239,18 @@ if image_url:
                             video_url = video_data.get("url") if isinstance(video_data, dict) else result.get("video_url")
                         elif isinstance(result, list) and result:
                             video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
+                            
                     elif model_choice == "Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
                         client = InferenceClient(
                             provider="fal-ai",
                             api_key=st.secrets["HF_TOKEN"],  # or os.environ["HF_TOKEN"]
                         )
-                        
                         # Wan I2V usually expects an image input and prompt
                         video = client.image_to_video(
                             image=image_data_url,
                             prompt=generated_text,
                             model="Wan-AI/Wan2.2-I2V-A14B",
                         )
-    
                         # Depending on client output shape, normalize to URL
                         if hasattr(video, "url"):
                             video_url = video.url
@@ -266,7 +265,7 @@ if image_url:
                         st.stop()
     
                 except Exception as e:
-                    st.error(f"fal.ai / Kling generation failed: {str(e)}")
+                    st.error(f"Video generation failed: {str(e)}")
                     st.stop()
     
             st.success("✅ High-quality Nike commercial video generated with Kling 3.0 Pro!")
