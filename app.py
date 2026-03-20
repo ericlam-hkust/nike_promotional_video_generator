@@ -74,8 +74,7 @@ if st.button("🚀 Generate Nike Promo Video", type="primary"):
                     # "seed": 42,
                     # "enable_safety_checker": True,
                     # "video_quality": "high",
-                },
-                timeout=400,  # Allow up to ~6-7 min
+                }
             )
 
             # Extract video URL from result
