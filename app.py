@@ -123,6 +123,7 @@ if image_url:
                     "max_tokens": 500,
                 }
                 API_URL = "https://router.huggingface.co/v1/chat/completions"
+                os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
                 headers = {
                     "Authorization": f"Bearer {os.environ['HF_TOKEN']}",
                 }
