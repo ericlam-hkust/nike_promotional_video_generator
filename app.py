@@ -1,260 +1,74 @@
 import streamlit as st
+import replicate
 import requests
-from PIL import Image
-from io import BytesIO
-from bs4 import BeautifulSoup
+import tempfile
 import os
-import time
+from PIL import Image
 
-# -----------------------------
-# API KEY
-# -----------------------------
-HF_API_KEY = None
-if "HF_API_KEY" in st.secrets:
-    HF_API_KEY = st.secrets["HF_API_KEY"]
-else:
-    HF_API_KEY = os.getenv("HF_API_KEY")
+st.set_page_config(page_title="Nike Video Generator", page_icon="🏃", layout="wide")
+st.title("🏃 Nike Commercial Video Generator")
+st.subheader("Wan 2.2 I2V-fast via Replicate API • No GPU needed!")
+st.caption("Hybrid Image + Text → 720p promotional video | Commercial use allowed")
 
-if HF_API_KEY is None:
-    st.error("❌ Missing Hugging Face API Key")
-    st.stop()
+# ================== SIDEBAR ==================
+with st.sidebar:
+    st.header("⚙️ Settings")
+    st.info("Model: wan-video/wan-2.2-i2v-fast (Wan2.2 5B hybrid family)\n"
+            "Generation time: ~1-5 minutes\n"
+            "Cost: ~$0.10–0.30 per video (your Replicate credits)")
 
-# -----------------------------
-# SAFE HF API CALL (NEW ROUTER)
-# -----------------------------
-def query_with_retry(model, payload, retries=5):
-    API_URL = f"https://router.huggingface.co/hf-inference/models/{model}"
-    headers = {
-        "Authorization": f"Bearer {HF_API_KEY}",
-        "Content-Type": "application/json"
-    }
+# ================== MAIN ==================
+uploaded_file = st.file_uploader("Upload Nike starting image (product/athlete/logo)", type=["jpg", "png", "jpeg"])
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Your Nike reference image", use_column_width=True)
 
-    for attempt in range(retries):
-        try:
-            res = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-
-            # Handle non-JSON response
-            try:
-                data = res.json()
-            except:
-                print("⚠️ Non-JSON response:", res.text[:200])
-                time.sleep(3)
-                continue
-
-            # Handle HF errors
-            if isinstance(data, dict):
-                if "error" in data:
-                    print("⚠️ HF error:", data["error"])
-                    time.sleep(5)
-                    continue
-
-            # Success
-            if isinstance(data, list):
-                return data
-
-        except requests.exceptions.RequestException as e:
-            print("⚠️ Request failed:", str(e))
-            time.sleep(3)
-
-    return None
-
-# -----------------------------
-# IMAGE EXTRACTION FROM URL
-# -----------------------------
-def extract_image_from_url(url):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(res.text, "html.parser")
-
-        og = soup.find("meta", property="og:image")
-        if og and og.get("content"):
-            return og["content"]
-
-        img = soup.find("img")
-        if img and img.get("src"):
-            return img["src"]
-
-        return None
-    except:
-        return None
-
-# -----------------------------
-# LOAD IMAGE SAFELY
-# -----------------------------
-def load_image(url):
-    try:
-        res = requests.get(url, timeout=10)
-        res.raise_for_status()
-        return Image.open(BytesIO(res.content))
-    except:
-        return None
-
-# -----------------------------
-# IMAGE → DESCRIPTION
-# -----------------------------
-def generate_caption(image_url):
-    payload = {"inputs": image_url}
-    data = query_with_retry("Salesforce/blip-image-captioning-base", payload)
-
-    if data:
-        try:
-            return data[0]["generated_text"]
-        except:
-            return "Nike running shoes with modern sporty design"
-    else:
-        return "Nike running shoes with modern sporty design"
-
-# -----------------------------
-# STORYBOARD GENERATION
-# -----------------------------
-def generate_cinematic_storyboard(description, name, age, gender, nationality, city):
-
-    gender_word = "man" if gender == "Male" else "woman"
-
-    prompt = f"""
-You are a professional film director creating a Nike commercial storyboard.
-
-Product:
-{description}
-
-Character:
-{name}, a {age}-year-old {nationality} {gender_word} in {city}
-
-Create a cinematic timeline.
-
-STRICT FORMAT:
-
-[0-3s]
-Shot:
-Camera:
-Visual:
-Emotion:
-
-[3-6s]
-Shot:
-Camera:
-Visual:
-Emotion:
-
-[6-10s]
-Shot:
-Camera:
-Visual:
-Emotion:
-
-[10-15s]
-Shot:
-Camera:
-Visual:
-Emotion:
-
-Final Slogan:
-
-Rules:
-- Cinematic and detailed
-- Include lighting, motion, product detail
-- No explanation outside format
-"""
-
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 300,
-            "temperature": 0.8
-        }
-    }
-
-    model = "mistralai/Mistral-7B-Instruct-v0.3"
-
-    data = query_with_retry(model, payload)
-
-    if data:
-        try:
-            return data[0]["generated_text"]
-        except:
-            return "⚠️ Parsing error. Try again."
-    else:
-        return "⚠️ API failed or model unavailable. Please try again."
-
-# -----------------------------
-# UI
-# -----------------------------
-st.title("🎬 AI Cinematic Nike Ad Generator")
-
-st.markdown("### 📥 Product Input")
-
-input_option = st.radio(
-    "Choose input method:",
-    ["🔗 Use Product URL", "📤 Upload Image"]
+prompt = st.text_area(
+    "Marketing Prompt",
+    value="Dynamic Nike athlete sprinting through a futuristic neon city at golden hour, energetic swoosh branding, cinematic sports commercial style, high energy motion, smooth camera pan, professional advertising look",
+    height=150
 )
 
-product_url = None
-image = None
-
-# -----------------------------
-# OPTION 1: URL
-# -----------------------------
-if input_option == "🔗 Use Product URL":
-    product_url = st.text_input("Enter Product URL")
-
-    if product_url:
-        st.write("🔍 Extracting image...")
-        img_url = extract_image_from_url(product_url)
-
-        if img_url:
-            image = load_image(img_url)
-
-            if image:
-                st.image(image, caption="Extracted Image")
-            else:
-                st.warning("⚠️ Failed to load image from URL.")
-        else:
-            st.warning("⚠️ No image found at URL.")
-
-# -----------------------------
-# OPTION 2: UPLOAD
-# -----------------------------
-else:
-    uploaded_file = st.file_uploader("Upload product image", type=["png", "jpg", "jpeg"])
-
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image")
-
-# -----------------------------
-# USER PROFILE
-# -----------------------------
-st.markdown("### 👤 User Profile")
-
-name = st.text_input("Name", "David")
-age = st.slider("Age", 18, 50, 28)
-gender = st.selectbox("Gender", ["Male", "Female"])
-nationality = st.text_input("Nationality", "Chinese")
-city = st.text_input("City", "Shanghai")
-
-# -----------------------------
-# GENERATE BUTTON
-# -----------------------------
-if st.button("🚀 Generate Cinematic Storyboard"):
-
-    if image is None:
-        st.error("❌ Please provide a product image.")
+if st.button("🚀 Generate Nike Promo Video", type="primary"):
+    if not st.secrets.get("REPLICATE_API_TOKEN"):
+        st.error("❌ Please add REPLICATE_API_TOKEN to .streamlit/secrets.toml")
         st.stop()
 
-    st.write("🧠 Understanding product...")
+    replicate.api_key = st.secrets["REPLICATE_API_TOKEN"]
 
-    image_input = product_url if product_url else "Nike running shoes"
-    description = generate_caption(image_input)
+    with st.spinner("Generating on Replicate cloud... (1–5 minutes)"):
+        # Save uploaded image temporarily
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            tmp.write(uploaded_file.getvalue())
+            image_path = tmp.name
 
-    st.write("**Detected product:**", description)
+        # Call the exact Wan 2.2 model
+        output = replicate.run(
+            "wan-video/wan-2.2-i2v-fast",
+            input={
+                "image": open(image_path, "rb"),   # Replicate auto-uploads the file
+                "prompt": prompt,
+                # You can add more params here if you want (check model page):
+                # "num_frames": 81,
+                # "fps": 24,
+                # "resolution": "720p",
+            }
+        )
 
-    st.write("🎬 Generating storyboard...")
+        # Cleanup temp file
+        os.unlink(image_path)
 
-    storyboard = generate_cinematic_storyboard(
-        description, name, age, gender, nationality, city
+        # Replicate usually returns the video URL directly (or list[0])
+        video_url = output if isinstance(output, str) else output[0] if isinstance(output, list) else output.get("video")
+
+    st.success("✅ Nike commercial video ready!")
+    st.video(video_url)
+
+    # Download button
+    video_data = requests.get(video_url).content
+    st.download_button(
+        label="📥 Download MP4 for your project",
+        data=video_data,
+        file_name="nike_commercial_720p.mp4",
+        mime="video/mp4"
     )
-
-    st.success("✨ Done!")
-
-    st.text_area("🎥 Cinematic Storyboard", storyboard, height=350)
