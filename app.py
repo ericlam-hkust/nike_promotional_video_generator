@@ -57,10 +57,10 @@ else:
     st.error("❌ FAL_KEY not found in .streamlit/secrets.toml or Streamlit app secrets.")
     st.stop()
 
-st.set_page_config(page_title="Nike Video Generator (Kling 3.0 Pro)", page_icon="🏃", layout="wide")
-st.title("🏃 Nike Commercial Video Generator – Kling 3.0 Pro")
-st.subheader("High-quality 1080p Image-Text-to-Video via fal.ai • No local GPU!")
-st.caption("Kling 3.0 Pro: Cinematic motion, fluid dynamics, strong prompt adherence | Up to 15s clips | Commercial Use")
+st.set_page_config(page_title="Nike Video Generator", page_icon="🏃", layout="wide")
+st.title("🏃 Nike Commercial Video Generator")
+st.subheader("High-quality Image-Text-to-Video • No local GPU!")
+st.caption("Cinematic motion, fluid dynamics, strong prompt adherence | Up to 15s clips | Commercial Use")
 
 # ================== SIDEBAR SETTINGS ==================
 with st.sidebar:
@@ -89,9 +89,9 @@ with st.sidebar:
     user_language = st.selectbox("Language", options=["English"], index=0, disabled=True)
 
     st.header("⚙️ Generation Settings")
-    st.info("Model: fal-ai/kling-video/v3/pro/image-to-video\n"
-            "Output: Up to 1080p native in Pro mode\n"
-            "Generation: ~60–300 seconds | Cost: ~$0.10–0.30 per clip")
+    # st.info("Model: fal-ai/kling-video/v3/pro/image-to-video\n"
+    #        "Output: Up to 1080p native in Pro mode\n"
+    #        "Generation: ~60–300 seconds | Cost: ~$0.10–0.30 per clip")
    
     duration = st.slider("Duration (seconds)", 3, 15, 10, help="Kling 3.0 Pro supports 3–15s; higher = more cost")
     aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0, help="16:9 for cinematic promo")
@@ -227,7 +227,7 @@ if image_url:
                 # Adjust extraction based on actual response shape
                 st.session_state.generated_text = result["choices"][0]["message"]["content"]
 
-                st.subheader("Generated description:")
+                st.subheader("Generated Script:")
                 st.markdown(st.session_state.generated_text)
 
             except requests.exceptions.RequestException as e:
@@ -239,8 +239,6 @@ if image_url:
                 st.json(result)
     
 if st.session_state.generated_text:
-    st.subheader("Generated Script")
-    st.markdown(st.session_state.generated_text)
     # --- Model selector ---
     model_choice = st.radio(
         "Choose video model",
@@ -254,6 +252,8 @@ if st.session_state.generated_text:
 
     if st.button("🚀 Generate High-Quality Promo Video", type="primary"):
         with st.spinner("Encoding image + generating high-quality video... (1–5 minutes)"):
+            st.subheader("Generated Script:")
+            st.markdown(st.session_state.generated_text)
             try:
                 buffered = io.BytesIO()
                 image.convert("RGB").save(buffered, format="JPEG")
