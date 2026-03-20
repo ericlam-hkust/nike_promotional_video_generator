@@ -88,6 +88,7 @@ elif input_method == "Provide direct URL":
 # ────────────────────────────────────────────────
 #   Only proceed with prompt + generation if we have image input
 # ────────────────────────────────────────────────
+generated_text = None
 if image_url:
     prompt_text = st.text_area(
         "Instruction for cinematic marketing-style text descriptions",
@@ -144,63 +145,64 @@ if image_url:
             except KeyError as e:
                 st.error(f"Unexpected response format: missing key {e}")
                 st.json(result)
-
-    if st.button("🚀 Generate Nike Promo Video (Kling 3.0 Pro)", type="primary"):
-        with st.spinner("Encoding image + generating high-quality video on fal.ai... (1–5 minutes)"):
-            try:
-                # Convert PIL image to base64 data URL (JPEG for compatibility/size)
-                buffered = io.BytesIO()
-                image.convert("RGB").save(buffered, format="JPEG")
-                img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                image_data_url = f"data:image/jpeg;base64,{img_base64}"
-
-                # Run Kling 3.0 Pro I2V
-                result = fal.subscribe(
-                    "fal-ai/kling-video/v3/pro/image-to-video",
-                    arguments={
-                        "prompt": generated_text,
-                        "start_image_url": image_data_url,  # fal.ai Kling accepts data URLs / base64
-                        "duration": str(duration),          # Must be string
-                        "aspect_ratio": aspect_ratio,
-                        "negative_prompt": negative_prompt,
-                        "cfg_scale": cfg_scale,
-                        # Optional extras (uncomment if needed):
-                        # "enable_audio": False,
-                        # "mode": "professional",
-                    }
-                )
-
-                # Extract video URL (handle different possible response shapes)
-                video_url = None
-                if isinstance(result, dict):
-                    video_data = result.get("video", {})
-                    video_url = video_data.get("url") if isinstance(video_data, dict) else result.get("video_url")
-                elif isinstance(result, list) and result:
-                    video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
-
-                if not video_url:
-                    st.error("No valid video URL returned. Check fal.ai dashboard/logs.")
-                    st.json(result)  # Debug output
+    
+    if generated_text:
+        if st.button("🚀 Generate Nike Promo Video (Kling 3.0 Pro)", type="primary"):
+            with st.spinner("Encoding image + generating high-quality video on fal.ai... (1–5 minutes)"):
+                try:
+                    # Convert PIL image to base64 data URL (JPEG for compatibility/size)
+                    buffered = io.BytesIO()
+                    image.convert("RGB").save(buffered, format="JPEG")
+                    img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                    image_data_url = f"data:image/jpeg;base64,{img_base64}"
+    
+                    # Run Kling 3.0 Pro I2V
+                    result = fal.subscribe(
+                        "fal-ai/kling-video/v3/pro/image-to-video",
+                        arguments={
+                            "prompt": generated_text,
+                            "start_image_url": image_data_url,  # fal.ai Kling accepts data URLs / base64
+                            "duration": str(duration),          # Must be string
+                            "aspect_ratio": aspect_ratio,
+                            "negative_prompt": negative_prompt,
+                            "cfg_scale": cfg_scale,
+                            # Optional extras (uncomment if needed):
+                            # "enable_audio": False,
+                            # "mode": "professional",
+                        }
+                    )
+    
+                    # Extract video URL (handle different possible response shapes)
+                    video_url = None
+                    if isinstance(result, dict):
+                        video_data = result.get("video", {})
+                        video_url = video_data.get("url") if isinstance(video_data, dict) else result.get("video_url")
+                    elif isinstance(result, list) and result:
+                        video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
+    
+                    if not video_url:
+                        st.error("No valid video URL returned. Check fal.ai dashboard/logs.")
+                        st.json(result)  # Debug output
+                        st.stop()
+    
+                except Exception as e:
+                    st.error(f"fal.ai / Kling generation failed: {str(e)}")
                     st.stop()
-
+    
+            st.success("✅ High-quality Nike commercial video generated with Kling 3.0 Pro!")
+            st.video(video_url)
+    
+            # Download button
+            try:
+                video_response = requests.get(video_url, timeout=60)
+                video_response.raise_for_status()
+                st.download_button(
+                    label="📥 Download 1080p MP4 for your project",
+                    data=video_response.content,
+                    file_name=f"nike_kling_promo_{duration}s.mp4",
+                    mime="video/mp4"
+                )
             except Exception as e:
-                st.error(f"fal.ai / Kling generation failed: {str(e)}")
-                st.stop()
-
-        st.success("✅ High-quality Nike commercial video generated with Kling 3.0 Pro!")
-        st.video(video_url)
-
-        # Download button
-        try:
-            video_response = requests.get(video_url, timeout=60)
-            video_response.raise_for_status()
-            st.download_button(
-                label="📥 Download 1080p MP4 for your project",
-                data=video_response.content,
-                file_name=f"nike_kling_promo_{duration}s.mp4",
-                mime="video/mp4"
-            )
-        except Exception as e:
-            st.warning("Video playable above — right-click player to save if download fails.")
+                st.warning("Video playable above — right-click player to save if download fails.")
 else:
     st.info("Please provide a starting image using one of the options above to enable the prompt and generation button.")
