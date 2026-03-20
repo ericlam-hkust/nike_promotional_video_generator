@@ -214,7 +214,7 @@ if image_url:
                     img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
                     image_data_url = f"data:image/jpeg;base64,{img_base64}"
 
-                     video_url = None
+                    video_url = None
 
                     if model_choice == "Kling 3.0 Pro (fal.ai)":
                         # Run Kling 3.0 Pro I2V
