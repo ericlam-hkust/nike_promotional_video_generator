@@ -329,7 +329,7 @@ if st.session_state.generated_text:
                 st.stop()
     
             if st.session_state.get("video_source"):
-                st.success(f"✅ High-quality Nike commercial video generated with {model_choice}")
+                st.success(f"✅ High-quality Nike commercial video generated with {st.session_state.model_choice}")
                 st.video(st.session_state.video_source)
 
 
