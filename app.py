@@ -284,14 +284,19 @@ if st.session_state.generated_text:
                         api_key=st.secrets["HF_TOKEN"],
                     )
     
-                    video = client.image_to_video(
-                        image=image_data_url,
-                        prompt=st.session_state.generated_text,
-                        negative_prompt=negative_prompt,
-                        model="Wan-AI/Wan2.2-I2V-A14B",
-                    )
-    
-                    video_source = normalize_video_output(video)
+                    segments = []
+                    for i in range(3):  # 3 segments = 15s
+                        prompt_seg = f"{st.session_state.generated_text} [segment {i+1}/3]"
+                        video_seg = client.image_to_video(
+                            image=image_data_url if i == 0 else segments[-1],  # use previous segment as start image
+                            prompt=prompt_seg,
+                            model="Wan-AI/Wan2.2-I2V-A14B",
+                        )
+                        segments.append(normalize_video_output(video_seg))
+                    
+                    # Stitch with moviepy or ffmpeg
+                    final_video = stitch_videos(segments)
+                    st.session_state.video_source = final_video
     
                 if not video_source:
                     st.error("No playable video output returned.")
