@@ -283,6 +283,7 @@ if st.session_state.generated_text:
                 video_source = None
     
                 if model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
+                    st.text(f"Generate Video for {duration}")
                     result = fal.subscribe(
                         "fal-ai/kling-video/v3/pro/image-to-video",
                         arguments={
@@ -299,12 +300,13 @@ if st.session_state.generated_text:
                     video_source = normalize_video_output(result)
     
                 elif model_choice == "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
+                    st.text(f"Free model can generate Video for ONLY 5s")
                     client = InferenceClient(
                         provider="fal-ai",
                         api_key=st.secrets["HF_TOKEN"],
                     )
                     video = client.image_to_video(
-                        input_image,
+                        input_image=image_data_url
                         prompt=st.session_state.generated_text,
                         negative_prompt=negative_prompt,
                         model="Wan-AI/Wan2.2-I2V-A14B",
