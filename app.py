@@ -114,10 +114,10 @@ elif input_method == "Provide direct URL":
 # ────────────────────────────────────────────────
 generated_text = None
 if image_url:
-    base_prompt = st.text_area(
+    system_prompt = st.text_area(
         "Base Marketing / Motion Prompt",
         value="""You are a world-class cinematic prompt engineer and Nike advertising creative director. 
-            Your job is to analyze the provided image and generate ONE single, extremely detailed, ready-to-use text prompt for Kling 3.0 Pro (or any high-end image-to-video model).
+            Your job is to analyze the provided image and generate ONE single, extremely detailed, ready-to-use text prompt for high-end image-text-to-video model.
             
             You MUST follow this exact layered structure and style (never deviate):
             
@@ -139,7 +139,7 @@ if image_url:
         height=150,
         help="This will be combined with user profile for personalization."
     )
-    full_prompt = f"""Analyze this image in extreme detail and create the perfect cinematic Nike commercial video prompt.
+    full_user_message = f"""Analyze this image in extreme detail and create the perfect cinematic Nike commercial video prompt.
                         User profile for personalization:
                         - Name: {user_name}
                         - Age: {user_age}
@@ -154,19 +154,12 @@ if image_url:
             try:
                 payload = {
                     "messages": [
+                        {"role": "system", "content": system_prompt},
                         {
                             "role": "user",
                             "content": [
-                                {
-                                    "type": "text",
-                                    "text": full_prompt
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": image_url   # ← this now works for BOTH remote URL and base64 data URL
-                                    }
-                                }
+                                {"type": "image_url", "image_url": {"url": image_data_url}},  # or base64 data URL
+                                {"type": "text", "text": full_user_message}
                             ]
                         }
                     ],
