@@ -2,4 +2,3 @@ streamlit
 fal-client>=0.13.1
 requests
 pillow
-tempfile
