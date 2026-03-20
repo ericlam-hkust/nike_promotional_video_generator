@@ -90,13 +90,12 @@ elif input_method == "Provide direct URL":
 # ────────────────────────────────────────────────
 if image_url:
     prompt_text = st.text_area(
-        "Instruction for description style",
+        "Instruction for cinematic marketing-style text descriptions",
         value="Describe this image generating detailed, cinematic marketing-style text descriptions. "
               "Focus on dynamic action, lighting, branding (e.g. swoosh, colors), camera movement, "
               "futuristic elements, high-energy sports commercial aesthetic.",
         height=120
     )
-
     if st.button("Generate Cinematic Marketing Description", type="primary"):
         with st.spinner("Calling Qwen vision model via API..."):
             try:
