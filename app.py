@@ -6,11 +6,11 @@ import os
 from PIL import Image
 import time
 
-# Set the FAL_KEY as environment variable (fal-client reads this automatically)
+# fal-client reads FAL_KEY from env automatically
 if "FAL_KEY" in st.secrets:
     os.environ["FAL_KEY"] = st.secrets["FAL_KEY"]
 else:
-    st.error("❌ FAL_KEY not found in .streamlit/secrets.toml")
+    st.error("❌ FAL_KEY not found in .streamlit/secrets.toml or Streamlit secrets")
     st.stop()
 
 st.set_page_config(page_title="Nike Video Generator (fal.ai)", page_icon="🏃", layout="wide")
@@ -38,47 +38,54 @@ prompt = st.text_area(
 )
 
 if st.button("🚀 Generate Nike Promo Video", type="primary"):
-    with st.spinner("Generating on fal.ai cloud... (30–120 seconds)"):
+    if not uploaded_file:
+        st.error("Please upload a starting Nike image first.")
+        st.stop()
+
+    with st.spinner("Uploading image + generating on fal.ai... (30–150 seconds)"):
         # Save uploaded image temporarily
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp.write(uploaded_file.getvalue())
             image_path = tmp.name
 
         try:
-            # Run the model (subscribe waits for completion)
+            # Step 1: Upload image to fal storage → get public URL
+            image_url = fal.storage.upload(image_path)  # Returns https://... URL
+            st.info(f"Image uploaded to: {image_url}")
+
+            # Step 2: Run the model with image_url
             result = fal.subscribe(
                 "fal-ai/wan/v2.2-5b/image-to-video",
                 arguments={
+                    "image_url": image_url,
                     "prompt": prompt,
-                    # Optional: add more if needed (check https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api)
-                    # "negative_prompt": "blurry, low quality, artifacts",
-                    # "num_frames": 121,
-                    # "fps": 24,
+                    # Optional params (add as needed from model API docs):
+                    # "negative_prompt": "blurry, lowres, artifacts, deformed",
+                    # "num_inference_steps": 50,
+                    # "guidance_scale": 7.5,
                 },
-                files={
-                    "image": open(image_path, "rb"),  # Uploads your Nike image
-                },
-                timeout=300,  # 5 min timeout
+                timeout=300,  # 5 minutes
             )
 
-            # Cleanup
+            # Cleanup local temp file
             os.unlink(image_path)
 
-            # Extract video URL from result (fal returns dict with 'video' key usually)
+            # Extract video URL (fal usually returns dict with 'video' → {'url': ...})
             if isinstance(result, dict):
-                video_url = result.get("video", {}).get("url")
+                video_data = result.get("video", {})
+                video_url = video_data.get("url") if isinstance(video_data, dict) else None
             elif isinstance(result, list) and result:
                 video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
             else:
                 video_url = None
 
             if not video_url:
-                st.error("No valid video URL returned. Check fal.ai dashboard for logs.")
-                st.json(result)  # Show full response for debug
+                st.error("No valid video URL in response. Check fal.ai dashboard/logs.")
+                st.json(result)  # Debug output
                 st.stop()
 
         except Exception as e:
-            st.error(f"fal.ai generation failed: {str(e)}")
+            st.error(f"fal.ai error: {str(e)}")
             if os.path.exists(image_path):
                 os.unlink(image_path)
             st.stop()
@@ -96,4 +103,4 @@ if st.button("🚀 Generate Nike Promo Video", type="primary"):
             mime="video/mp4"
         )
     except Exception as e:
-        st.warning(f"Video ready (player above) — right-click to save manually if download fails. ({str(e)})")
+        st.warning(f"Video ready in player above — right-click to save if download fails. ({str(e)})")
