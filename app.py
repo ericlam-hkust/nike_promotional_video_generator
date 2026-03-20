@@ -28,7 +28,7 @@ with st.sidebar:
     
     duration = st.slider("Duration (seconds)", 3, 15, 10, help="Kling 3.0 Pro supports 3–15s; higher = more cost")
     aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0, help="16:9 for cinematic promo")
-    cfg_scale = st.slider("Guidance Scale (CFG)", 0.1, 10.0, 3.0, 0.5, help="Higher = stricter prompt following; 2.5–5.0 often best for motion")
+    cfg_scale = st.slider("Guidance Scale (CFG)", 0.1, 1.0, 0.5, 0.1, help="Kling range: 0.1–1.0 | Higher = stricter prompt following; 0.4–0.6 often best for natural motion")
     negative_prompt = st.text_area("Negative Prompt (avoid these)", 
                                    value="blurry, low quality, artifacts, deformed, static, text, watermark, ugly, distorted, overexposed",
                                    height=100)
@@ -65,17 +65,18 @@ if st.button("🚀 Generate Nike Promo Video (Kling 3.0 Pro)", type="primary"):
                 arguments={
                     "prompt": prompt,
                     "start_image_url": image_data_url,  # Kling uses start_image_url for I2V
-                    "duration": str(duration),          # Must be string per schema
+                    "duration": str(duration),          # Must be string
                     "aspect_ratio": aspect_ratio,
                     "negative_prompt": negative_prompt,
                     "cfg_scale": cfg_scale,
                     # Optional extras (uncomment if needed):
                     # "enable_audio": False,  # Kling Pro can generate native audio if True
                     # "mode": "professional",  # Some variants support modes
-                }
+                },
+                timeout=600,  # 10 min max
             )
 
-            # Extract video URL (Kling returns dict with 'video' → {'url': ...})
+            # Extract video URL
             video_url = None
             if isinstance(result, dict):
                 video_data = result.get("video", {})
@@ -85,7 +86,7 @@ if st.button("🚀 Generate Nike Promo Video (Kling 3.0 Pro)", type="primary"):
 
             if not video_url:
                 st.error("No valid video URL returned. Check fal.ai dashboard/logs.")
-                st.json(result)  # Debug: full response
+                st.json(result)  # Debug
                 st.stop()
 
         except Exception as e:
