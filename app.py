@@ -79,7 +79,7 @@ elif input_method == "Provide direct URL":
             response = requests.head(url_input, timeout=5, allow_redirects=True)
             if response.status_code != 200:
                 st.warning("URL may not be accessible (non-200 status). Try anyway?")
-            st.image(url_input, caption="Preview from URL (if accessible)", use_column_width=True)
+            st.image(url_input, caption="Preview from URL (if accessible)", width=400)
             image_url = url_input  # direct remote URL
 
         except Exception as e:
