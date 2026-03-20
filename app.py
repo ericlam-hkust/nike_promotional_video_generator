@@ -258,8 +258,7 @@ if image_url:
                 st.error(f"Unexpected response format: missing key {e}")
                 st.json(result)
 
-if "model_info" not in st.session_state:
-    st.session_state.model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)"
+model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)" # default option
 
 def update_model_info():
     if st.session_state.model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
@@ -294,7 +293,7 @@ if st.session_state.generated_text:
     
                 video_source = None
     
-                if model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
+                if st.session_state.model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
                     result = fal.subscribe(
                         "fal-ai/kling-video/v3/pro/image-to-video",
                         arguments={
@@ -310,7 +309,7 @@ if st.session_state.generated_text:
     
                     video_source = normalize_video_output(result)
     
-                elif model_choice == "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
+                elif st.session_state.model_choice == "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
                     client = InferenceClient(
                         provider="fal-ai",
                         api_key=st.secrets["HF_TOKEN"],
