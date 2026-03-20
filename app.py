@@ -158,7 +158,7 @@ if image_url:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "image_url", "image_url": {"url": image_data_url}},  # or base64 data URL
+                                {"type": "image_url", "image_url": {"url": image_url}},  # or base64 data URL
                                 {"type": "text", "text": full_user_message}
                             ]
                         }
