@@ -165,8 +165,8 @@ if image_url:
                     ],
                     "model": "Qwen/Qwen3.5-397B-A17B:novita",  # or keep your original
                     # Optional: temperature, max_tokens, etc.
-                    "temperature": 0.7,
-                    "max_tokens": 500,
+                    "temperature": 0.7
+                    # "max_tokens": 500,
                 }
                 API_URL = "https://router.huggingface.co/v1/chat/completions"
                 os.environ["HF_KEY"] = st.secrets["HF_KEY"]
@@ -214,6 +214,7 @@ if image_url:
                             # Optional extras (uncomment if needed):
                             # "enable_audio": False,
                             # "mode": "professional",
+                            "mode": "professional"
                         }
                     )
     
