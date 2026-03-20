@@ -16,8 +16,8 @@ else:
 
 st.set_page_config(page_title="Nike Video Generator (Kling 3.0 Pro)", page_icon="🏃", layout="wide")
 st.title("🏃 Nike Commercial Video Generator – Kling 3.0 Pro")
-st.subheader("High-quality 1080p Image-to-Video via fal.ai • No local GPU!")
-st.caption("Kling 3.0 Pro: Cinematic motion, fluid dynamics, strong prompt adherence | Up to 15s clips | Commercial use OK")
+st.subheader("High-quality 1080p Image-Text-to-Video via fal.ai • No local GPU!")
+st.caption("Kling 3.0 Pro: Cinematic motion, fluid dynamics, strong prompt adherence | Up to 15s clips | Commercial Use")
 
 # ================== SIDEBAR SETTINGS ==================
 with st.sidebar:
@@ -150,7 +150,7 @@ if image_url:
                         Generate the prompt now."""
 
     if st.button("🚀 Generate Cinematic Marketing Description for Marketing Video", type="primary"):
-        with st.spinner("Calling Qwen vision model via API..."):
+        with st.spinner("Calling Qwen3.5-35B-A3B model via API..."):
             try:
                 payload = {
                     "messages": [
