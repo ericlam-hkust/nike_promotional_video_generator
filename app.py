@@ -8,6 +8,7 @@ import base64
 import io
 from huggingface_hub import InferenceClient
 from pathlib import Path
+import math
 
 def normalize_video_output(output):
     if output is None:
