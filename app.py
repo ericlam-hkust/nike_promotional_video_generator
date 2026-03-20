@@ -122,7 +122,10 @@ if image_url:
                     "temperature": 0.7,
                     "max_tokens": 500,
                 }
-
+                API_URL = "https://router.huggingface.co/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {os.environ['HF_TOKEN']}",
+                }
                 response = requests.post(API_URL, headers=headers, json=payload)
                 response.raise_for_status()  # raise if 4xx/5xx
 
