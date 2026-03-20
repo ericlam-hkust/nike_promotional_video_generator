@@ -21,6 +21,30 @@ st.caption("Kling 3.0 Pro: Cinematic motion, fluid dynamics, strong prompt adher
 
 # ================== SIDEBAR SETTINGS ==================
 with st.sidebar:
+    st.header("👤 User Profile")
+    st.caption("This personalizes your Nike promo (embedded in prompt)")
+
+    user_name = st.text_input("Name", value="Eric", max_chars=50)
+    user_age = st.slider("Age", min_value=18, max_value=80, value=30, step=1)
+    user_gender = st.selectbox("Gender", 
+                               options=["Man", "Woman", "Non-binary", "Prefer not to say"],
+                               index=0)
+    user_city = st.selectbox("City / District (HK)", 
+                             options=[
+                                 "Hong Kong Island", "Kowloon", "New Territories",
+                                 "Central and Western", "Wan Chai", "Eastern", "Southern",
+                                 "Yau Tsim Mong", "Sham Shui Po", "Kowloon City",
+                                 "Tsuen Wan", "Sha Tin", "Tuen Mun", "Other"
+                             ],
+                             index=0)
+    user_race = st.selectbox("Ethnicity / Race",
+                             options=[
+                                 "Chinese", "Filipino", "Indonesian", "South Asian (Indian/Pakistani/Nepalese)",
+                                 "White", "Other Asian", "Other", "Prefer not to say"
+                             ],
+                             index=0)
+    user_language = st.selectbox("Language", options=["English"], index=0, disabled=True)
+
     st.header("⚙️ Generation Settings")
     st.info("Model: fal-ai/kling-video/v3/pro/image-to-video\n"
             "Output: Up to 1080p native in Pro mode\n"
@@ -90,13 +114,22 @@ elif input_method == "Provide direct URL":
 # ────────────────────────────────────────────────
 generated_text = None
 if image_url:
-    prompt_text = st.text_area(
-        "Instruction for cinematic marketing-style text descriptions",
-        value="Describe this image generating detailed, cinematic marketing-style text descriptions. "
-              "Focus on dynamic action, lighting, branding (e.g. swoosh, colors), camera movement, "
-              "futuristic elements, high-energy sports commercial aesthetic.",
-        height=120
+    base_prompt = st.text_area(
+        "Base Marketing / Motion Prompt",
+        value="Dynamic Nike athlete powerfully sprinting forward through a futuristic neon-lit city at golden hour sunset, energetic visible swoosh branding on clothing and billboards, cinematic sports commercial style, high-energy fluid motion, smooth dramatic tracking camera pan and follow shot, professional advertising look, intense dramatic lighting, high detail",
+        height=150,
+        help="This will be combined with your user profile for personalization."
     )
+
+    if st.button("🚀 Generate Personalized Nike Promo Video (Kling 3.0 Pro)", type="primary"):
+        # Build personalized full prompt
+        personalized_addition = (
+            f" Tailor the marketing style, energy, and appeal for a {user_age}-year-old {user_gender.lower()} "
+            f"user named {user_name} from {user_city}, {user_race} background. "
+            f"Use natural English language suitable for this demographic."
+        )
+        full_prompt = base_prompt.strip() + personalized_addition
+
     if st.button("Generate Cinematic Marketing Description for Marketing Video", type="primary"):
         with st.spinner("Calling Qwen vision model via API..."):
             try:
@@ -107,7 +140,7 @@ if image_url:
                             "content": [
                                 {
                                     "type": "text",
-                                    "text": prompt_text
+                                    "text": full_prompt
                                 },
                                 {
                                     "type": "image_url",
