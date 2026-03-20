@@ -9,57 +9,65 @@ import io
 from huggingface_hub import InferenceClient
 from pathlib import Path
 import math
+import time
 
 def normalize_video_output(output):
     if output is None:
         return None
 
+    # URL or file path
     if isinstance(output, (str, Path)):
         s = str(output)
-        if s.startswith("http://") or s.startswith("https://"):
-            return s
-        if Path(s).exists():
+        if s.startswith(("http://", "https://")) or Path(s).exists():
             return s
         return None
 
+    # Bytes
     if isinstance(output, bytes):
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         tmp.write(output)
         tmp.close()
         return tmp.name
 
+    # File-like
     if hasattr(output, "read"):
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         tmp.write(output.read())
         tmp.close()
         return tmp.name
 
+    # Has URL attribute
     if hasattr(output, "url"):
-        return output.url
+        url = output.url
+        if isinstance(url, str) and url:
+            return url
 
+    # Dict handling - FIXED
     if isinstance(output, dict):
-        # Top-level first
+        # Top-level URLs
         for k in ["url", "video_url", "file", "path"]:
             v = output.get(k)
             if isinstance(v, str) and v:
                 return v
         
-        # Nested video dict
+        # Nested video
         video_data = output.get("video")
-        if isinstance(video_data, dict):
-            for k in ["url", "video_url"]:
-                v = video_data.get(k)
-                if isinstance(v, str) and v:
-                    return v
+        if video_data is not None:
+            if isinstance(video_data, dict):
+                for k in ["url", "video_url"]:
+                    v = video_data.get(k)
+                    if isinstance(v, str) and v:
+                        return v
+            elif isinstance(video_data, bytes):
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+                tmp.write(video_data)
+                tmp.close()
+                return tmp.name
         
-        # Video bytes
-        data = output.get("video") or output.get("data")
-        if isinstance(data, bytes):
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-            tmp.write(data)
-            tmp.close()
-            return tmp.name
+        st.warning(f"Dict has no usable video data. Keys: {list(output.keys())}")
+        return None
 
+    st.warning(f"Unknown output type: {type(output)}")
     return None
 
 # Set FAL_KEY from secrets (fal-client reads from env)
@@ -306,6 +314,7 @@ if st.session_state.generated_text:
                             model="Wan-AI/Wan2.2-I2V-A14B",
                         )
                         segments.append(normalize_video_output(video_seg))
+                        time.sleep(100)
                     
                     # Stitch with moviepy or ffmpeg
                     final_video = stitch_videos(segments)
