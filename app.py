@@ -125,7 +125,7 @@ if image_url:
                 API_URL = "https://router.huggingface.co/v1/chat/completions"
                 os.environ["HF_KEY"] = st.secrets["HF_KEY"]
                 headers = {
-                    "Authorization": f"Bearer {os.environ['HF_TOKEN']}",
+                    "Authorization": f"Bearer {os.environ['HF_KEY']}",
                 }
                 response = requests.post(API_URL, headers=headers, json=payload)
                 response.raise_for_status()  # raise if 4xx/5xx
