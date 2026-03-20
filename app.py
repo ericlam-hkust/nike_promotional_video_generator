@@ -186,7 +186,7 @@ if image_url:
                 st.session_state.generated_text = result["choices"][0]["message"]["content"]
 
                 st.success("Generated description:")
-                st.markdown(generated_text)
+                st.markdown(st.session_state.generated_text)
 
             except requests.exceptions.RequestException as e:
                 st.error(f"API request failed: {e}")
