@@ -57,7 +57,7 @@ if input_method == "Upload local file":
     if uploaded_file is not None:
         try:
             image = Image.open(uploaded_file)
-            st.image(image, caption="Uploaded image", height=400, width=400)
+            st.image(image, caption="Uploaded image", width=400)
 
             # Convert to base64 data URL
             buffered = io.BytesIO()
@@ -79,7 +79,7 @@ elif input_method == "Provide direct URL":
             response = requests.head(url_input, timeout=5, allow_redirects=True)
             if response.status_code != 200:
                 st.warning("URL may not be accessible (non-200 status). Try anyway?")
-            st.image(url_input, caption="Preview from URL (if accessible)", height=400, width=400)
+            st.image(url_input, caption="Preview from URL (if accessible)", width=400)
             image_url = url_input  # direct remote URL
 
         except Exception as e:
