@@ -72,8 +72,7 @@ if st.button("🚀 Generate Nike Promo Video (Kling 3.0 Pro)", type="primary"):
                     # Optional extras (uncomment if needed):
                     # "enable_audio": False,  # Kling Pro can generate native audio if True
                     # "mode": "professional",  # Some variants support modes
-                },
-                timeout=600,  # 10 min max for longer/higher-quality gens
+                }
             )
 
             # Extract video URL (Kling returns dict with 'video' → {'url': ...})
