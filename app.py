@@ -203,7 +203,7 @@ if image_url:
             Personalization is CRITICAL: Tailor the energy, tone, appeal, and cultural resonance specifically for a {user_age}-year-old {user_gender} named {user_name} from {user_city}, {user_race} background. Make it feel empowering and perfectly matched to this demographic.
             
             Output ONLY the final prompt text — nothing else. No explanations, no JSON, no markdown, no extra words. Start directly with "[Subject / Hero Shot]:".""",
-        height=150,
+        height=550,
         help="This will be combined with user profile for personalization."
     )
     full_user_message = f"""Analyze this image in extreme detail and create the perfect cinematic Nike commercial video prompt.
@@ -258,7 +258,7 @@ if image_url:
                 st.error(f"Unexpected response format: missing key {e}")
                 st.json(result)
 
-model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)" # default option
+st.session_state.model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)" # default option
 
 def update_model_info():
     if st.session_state.model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
@@ -268,7 +268,7 @@ def update_model_info():
     
 if st.session_state.generated_text:
     # --- Model selector ---
-    model_choice = st.radio(
+    st.session_state.model_choice = st.radio(
         "Choose video model",
         options=[
             "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)",
