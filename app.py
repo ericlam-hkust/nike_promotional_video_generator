@@ -115,7 +115,8 @@ else:
 # ────────────────────────────────────────────────
 #   Only proceed with prompt + generation if we have image input
 # ────────────────────────────────────────────────
-generated_text = None
+if "generated_text" not in st.session_state:
+    st.session_state.generated_text = None
 if image_url:
     system_prompt = st.text_area(
         "Base Marketing / Motion Prompt",
@@ -182,7 +183,7 @@ if image_url:
 
                 result = response.json()
                 # Adjust extraction based on actual response shape
-                generated_text = result["choices"][0]["message"]["content"]
+                st.session_state.generated_text = result["choices"][0]["message"]["content"]
 
                 st.success("Generated description:")
                 st.markdown(generated_text)
@@ -195,7 +196,7 @@ if image_url:
                 st.error(f"Unexpected response format: missing key {e}")
                 st.json(result)
     
-if generated_text:
+if st.session_state.generated_text:
     # --- Model selector ---
     model_choice = st.radio(
         "Choose video model",
@@ -223,7 +224,7 @@ if generated_text:
                     result = fal.subscribe(
                         "fal-ai/kling-video/v3/pro/image-to-video",
                         arguments={
-                            "prompt": generated_text,
+                            "prompt": st.session_state.generated_text,
                             "start_image_url": image_data_url,  # fal.ai Kling accepts data URLs / base64
                             "duration": str(duration),          # Must be string
                             "aspect_ratio": aspect_ratio,
@@ -250,7 +251,7 @@ if generated_text:
                     # Wan I2V usually expects an image input and prompt
                     video = client.image_to_video(
                         image=image_data_url,
-                        prompt=generated_text,
+                        prompt=st.session_state.generated_text,
                         model="Wan-AI/Wan2.2-I2V-A14B",
                     )
                     # Depending on client output shape, normalize to URL
