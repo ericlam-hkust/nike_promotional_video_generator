@@ -259,6 +259,8 @@ if image_url:
                 st.json(result)
 
 
+if "model_choice" not in st.session_state:
+    st.session_state.model_choice = None
 if st.session_state.generated_text:
     # --- Model selector ---
     st.session_state.model_choice = st.radio(
