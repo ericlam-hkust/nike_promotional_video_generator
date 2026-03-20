@@ -3,3 +3,4 @@ fal-client>=0.13.1
 requests
 pillow
 base64
+tempfile
