@@ -109,6 +109,8 @@ elif input_method == "Provide direct URL":
 
         except Exception as e:
             st.error(f"Invalid or unreachable URL: {e}")
+else:
+    st.info("Please provide a starting image using one of the options above to enable the prompt and generation button.")
 
 # ────────────────────────────────────────────────
 #   Only proceed with prompt + generation if we have image input
@@ -283,5 +285,3 @@ if generated_text:
             )
         except Exception as e:
             st.warning("Video playable above — right-click player to save if download fails.")
-else:
-    st.info("Please provide a starting image using one of the options above to enable the prompt and generation button.")
