@@ -306,7 +306,7 @@ if st.session_state.generated_text:
                     video = client.image_to_video(
                         input_image,
                         prompt=st.session_state.generated_text,
-                        negative_prompt=negative_prompt
+                        negative_prompt=negative_prompt,
                         model="Wan-AI/Wan2.2-I2V-A14B",
                     )
                     video_source = normalize_video_output(video)
