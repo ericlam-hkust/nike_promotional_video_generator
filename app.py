@@ -257,6 +257,15 @@ if image_url:
             except KeyError as e:
                 st.error(f"Unexpected response format: missing key {e}")
                 st.json(result)
+
+if "model_info" not in st.session_state:
+    st.session_state.model_info = ""
+
+def update_model_info():
+    if st.session_state.model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
+        st.session_state.model_info = "Kling 3.0 Pro: 1080p, up to 15s, cinematic quality ($0.20/clip)"
+    elif st.session_state.model_choice == "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
+        st.session_state.model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)"
     
 if st.session_state.generated_text:
     # --- Model selector ---
@@ -268,8 +277,11 @@ if st.session_state.generated_text:
         ],
         index=0,
         horizontal=True,
+        on_change=update_model_info
     )
-
+    
+    st.info(st.session_state.model_info)
+    
     if st.button("🚀 Generate High-Quality Promo Video", type="primary"):
         with st.spinner("Encoding image + generating high-quality video... (1–5 minutes)"):
             st.subheader("Cinematic Script for Video Generation:")
@@ -283,7 +295,6 @@ if st.session_state.generated_text:
                 video_source = None
     
                 if model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
-                    st.text(f"Generate Video for {duration}")
                     result = fal.subscribe(
                         "fal-ai/kling-video/v3/pro/image-to-video",
                         arguments={
@@ -300,7 +311,6 @@ if st.session_state.generated_text:
                     video_source = normalize_video_output(result)
     
                 elif model_choice == "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
-                    st.text(f"Free model can generate Video for ONLY 5s")
                     client = InferenceClient(
                         provider="fal-ai",
                         api_key=st.secrets["HF_TOKEN"],
