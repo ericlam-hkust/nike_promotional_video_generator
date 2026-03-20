@@ -116,7 +116,7 @@ full_prompt = None
 if image_url:
     base_prompt = st.text_area(
         "Base Marketing / Motion Prompt",
-        value=value="Describe this image generating detailed, cinematic marketing-style text descriptions. "
+        value="Describe this image generating detailed, cinematic marketing-style text descriptions. "
                   "Focus on dynamic action, lighting, branding (e.g. swoosh, colors), camera movement, "
                   "futuristic elements, high-energy sports commercial aesthetic."
                 "ONLY provide one BEST OPTION",
