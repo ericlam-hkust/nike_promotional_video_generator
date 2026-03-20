@@ -38,11 +38,22 @@ def normalize_video_output(output):
         return output.url
 
     if isinstance(output, dict):
+        # Top-level first
         for k in ["url", "video_url", "file", "path"]:
             v = output.get(k)
             if isinstance(v, str) and v:
                 return v
-        data = output.get("video")
+        
+        # Nested video dict
+        video_data = output.get("video")
+        if isinstance(video_data, dict):
+            for k in ["url", "video_url"]:
+                v = video_data.get(k)
+                if isinstance(v, str) and v:
+                    return v
+        
+        # Video bytes
+        data = output.get("video") or output.get("data")
         if isinstance(data, bytes):
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
             tmp.write(data)
@@ -253,7 +264,7 @@ if st.session_state.generated_text:
 
     if st.button("🚀 Generate High-Quality Promo Video", type="primary"):
         with st.spinner("Encoding image + generating high-quality video... (1–5 minutes)"):
-            st.subheader("Generated Script:")
+            st.subheader("Cinematic Script for Video Generation:")
             st.markdown(st.session_state.generated_text)
             try:
                 buffered = io.BytesIO()
