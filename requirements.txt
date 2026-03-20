@@ -1,4 +1,4 @@
 streamlit
-replicate==0.28.0   # or try 0.25.0 / 0.26.0 if 0.28 fails
+fal-client
 requests
 pillow
