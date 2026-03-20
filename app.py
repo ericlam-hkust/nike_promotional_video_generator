@@ -4,36 +4,44 @@ import requests
 import tempfile
 import os
 from PIL import Image
-import time
+import base64
+import io
 
-# fal-client reads FAL_KEY from env automatically
+# fal-client reads FAL_KEY from environment automatically
 if "FAL_KEY" in st.secrets:
     os.environ["FAL_KEY"] = st.secrets["FAL_KEY"]
 else:
-    st.error("❌ FAL_KEY not found in .streamlit/secrets.toml or Streamlit secrets")
+    st.error("❌ FAL_KEY not found in .streamlit/secrets.toml or Streamlit app secrets.")
     st.stop()
 
 st.set_page_config(page_title="Nike Video Generator (fal.ai)", page_icon="🏃", layout="wide")
 st.title("🏃 Nike Commercial Video Generator")
-st.subheader("Wan 2.2 5B Image-to-Video via fal.ai • No GPU needed!")
-st.caption("Upload Nike image + prompt → 720p ~5s promo video | Commercial use OK")
+st.subheader("Wan 2.2 5B Image-to-Video via fal.ai • Cloud-based, no local GPU!")
+st.caption("Upload Nike image + prompt → ~5s 720p promo video | Commercial use allowed")
 
-# ================== SIDEBAR ==================
+# ================== SIDEBAR SETTINGS ==================
 with st.sidebar:
-    st.header("⚙️ Settings")
-    st.info("Model: fal-ai/wan/v2.2-5b/image-to-video\n"
-            "Generation: ~30–120 seconds\n"
-            "Cost: ~$0.05–0.30 per video (check fal dashboard)")
+    st.header("⚙️ Generation Settings")
+    st.info("Model: fal-ai/wan/v2.2-5b/image-to-video")
+    num_frames = st.slider("Number of frames", 17, 161, 81, help="~81 frames ≈ 3-4 seconds at 24 fps")
+    fps = st.slider("Frames per second", 4, 60, 24)
+    resolution = st.selectbox("Resolution", ["720p", "580p"], index=0)
+    guidance_scale = st.slider("Guidance scale", 1.0, 10.0, 3.5, 0.5)
+    negative_prompt = st.text_area("Negative prompt (optional)", 
+                                   value="blurry, low quality, artifacts, deformed, static, text, watermark, ugly",
+                                   height=100)
+    st.caption("Generation time: ~30–150 seconds | Cost: low (~$0.05–0.30)")
 
 # ================== MAIN UI ==================
-uploaded_file = st.file_uploader("Upload Nike starting image (product/athlete/logo)", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Upload starting Nike image (product, athlete, logo, etc.)", 
+                                 type=["jpg", "jpeg", "png"])
 if uploaded_file:
     image = Image.open(uploaded_file)
     st.image(image, caption="Your Nike reference image", use_column_width=True)
 
 prompt = st.text_area(
-    "Marketing Prompt",
-    value="Dynamic Nike athlete sprinting through a futuristic neon city at golden hour, energetic swoosh branding, cinematic sports commercial style, high energy motion, smooth camera pan, professional advertising look",
+    "Marketing / Motion Prompt",
+    value="Dynamic Nike athlete sprinting powerfully through a futuristic neon city at golden hour, energetic swoosh branding visible, cinematic sports commercial style, high energy motion, smooth dramatic camera pan and follow, professional advertising look, intense lighting",
     height=150
 )
 
@@ -42,65 +50,63 @@ if st.button("🚀 Generate Nike Promo Video", type="primary"):
         st.error("Please upload a starting Nike image first.")
         st.stop()
 
-    with st.spinner("Uploading image + generating on fal.ai... (30–150 seconds)"):
-        # Save uploaded image temporarily
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            tmp.write(uploaded_file.getvalue())
-            image_path = tmp.name
-
+    with st.spinner("Encoding image + generating on fal.ai cloud... (30–150 seconds)"):
         try:
-            # Step 1: Upload image to fal storage → get public URL
-            image_url = fal.storage.upload(image_path)  # Returns https://... URL
-            st.info(f"Image uploaded to: {image_url}")
+            # Convert image to base64 data URL
+            buffered = io.BytesIO()
+            # Convert to JPEG for smaller size / better compatibility
+            image.convert("RGB").save(buffered, format="JPEG")
+            img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            image_data_url = f"data:image/jpeg;base64,{img_base64}"
 
-            # Step 2: Run the model with image_url
+            # Run the model
             result = fal.subscribe(
                 "fal-ai/wan/v2.2-5b/image-to-video",
                 arguments={
-                    "image_url": image_url,
+                    "image_url": image_data_url,
                     "prompt": prompt,
-                    # Optional params (add as needed from model API docs):
-                    # "negative_prompt": "blurry, lowres, artifacts, deformed",
-                    # "num_inference_steps": 50,
-                    # "guidance_scale": 7.5,
+                    "num_frames": num_frames,
+                    "frames_per_second": fps,
+                    "resolution": resolution.lower(),
+                    "negative_prompt": negative_prompt,
+                    "guidance_scale": guidance_scale,
+                    # Add more if desired (see model API docs):
+                    # "seed": 42,
+                    # "enable_safety_checker": True,
+                    # "video_quality": "high",
                 },
-                timeout=300,  # 5 minutes
+                timeout=400,  # Allow up to ~6-7 min
             )
 
-            # Cleanup local temp file
-            os.unlink(image_path)
-
-            # Extract video URL (fal usually returns dict with 'video' → {'url': ...})
+            # Extract video URL from result
+            video_url = None
             if isinstance(result, dict):
                 video_data = result.get("video", {})
-                video_url = video_data.get("url") if isinstance(video_data, dict) else None
+                video_url = video_data.get("url") if isinstance(video_data, dict) else result.get("video_url")
             elif isinstance(result, list) and result:
                 video_url = result[0].get("url") if isinstance(result[0], dict) else result[0]
-            else:
-                video_url = None
 
             if not video_url:
-                st.error("No valid video URL in response. Check fal.ai dashboard/logs.")
-                st.json(result)  # Debug output
+                st.error("No video URL found in response.")
+                st.json(result)  # Show full output for debugging
                 st.stop()
 
         except Exception as e:
-            st.error(f"fal.ai error: {str(e)}")
-            if os.path.exists(image_path):
-                os.unlink(image_path)
+            st.error(f"fal.ai generation failed: {str(e)}")
             st.stop()
 
-    st.success("✅ Nike commercial video generated!")
+    st.success("✅ Nike commercial video ready!")
     st.video(video_url)
 
     # Download button
     try:
-        video_data = requests.get(video_url, timeout=30).content
+        video_response = requests.get(video_url, timeout=30)
+        video_response.raise_for_status()
         st.download_button(
-            label="📥 Download MP4 for your project",
-            data=video_data,
-            file_name="nike_commercial_720p.mp4",
+            label="📥 Download MP4 for your master's project",
+            data=video_response.content,
+            file_name="nike_promo_video_720p.mp4",
             mime="video/mp4"
         )
     except Exception as e:
-        st.warning(f"Video ready in player above — right-click to save if download fails. ({str(e)})")
+        st.warning("Video is playable above — right-click the player to save if download button fails.")
