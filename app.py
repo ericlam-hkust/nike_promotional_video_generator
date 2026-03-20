@@ -258,14 +258,7 @@ if image_url:
                 st.error(f"Unexpected response format: missing key {e}")
                 st.json(result)
 
-st.session_state.model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)" # default option
 
-def update_model_info():
-    if st.session_state.model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
-        st.session_state.model_info = "Kling 3.0 Pro: 1080p, up to 15s, cinematic quality ($0.20/clip)"
-    elif st.session_state.model_choice == "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
-        st.session_state.model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)"
-    
 if st.session_state.generated_text:
     # --- Model selector ---
     st.session_state.model_choice = st.radio(
@@ -275,14 +268,16 @@ if st.session_state.generated_text:
             "PAID MODEL: Kling 3.0 Pro (fal.ai)"
         ],
         index=0,
-        horizontal=True,
-        on_change=update_model_info
+        horizontal=True
     )
-    
-    st.info(st.session_state.model_info)
     
     if st.button("🚀 Generate High-Quality Promo Video", type="primary"):
         with st.spinner("Encoding image + generating high-quality video... (1–5 minutes)"):
+            if st.session_state.model_choice == "PAID MODEL: Kling 3.0 Pro (fal.ai)":
+                st.session_state.model_info = "Kling 3.0 Pro: 1080p, up to 15s, cinematic quality ($0.20/clip)"
+            elif st.session_state.model_choice == "FREE MODEL: Wan-AI/Wan2.2-I2V-A14B (Hugging Face)":
+                st.session_state.model_info = "Wan2.2 I2V: 5s clips @ 16FPS, open source (free quota limited)"
+            st.info(st.session_state.model_info)
             st.subheader("Cinematic Script for Video Generation:")
             st.markdown(st.session_state.generated_text)
             try:
