@@ -227,7 +227,7 @@ if image_url:
                 # Adjust extraction based on actual response shape
                 st.session_state.generated_text = result["choices"][0]["message"]["content"]
 
-                st.success("Generated description:")
+                st.subheader("Generated description:")
                 st.markdown(st.session_state.generated_text)
 
             except requests.exceptions.RequestException as e:
@@ -239,6 +239,8 @@ if image_url:
                 st.json(result)
     
 if st.session_state.generated_text:
+    st.subheader("Generated Script")
+    st.markdown(st.session_state.generated_text)
     # --- Model selector ---
     model_choice = st.radio(
         "Choose video model",
@@ -308,13 +310,12 @@ if st.session_state.generated_text:
 
         # Download button
         try:
-            video_response = requests.get(video_url, timeout=60)
-            video_response.raise_for_status()
-            st.download_button(
-                label="📥 Download 1080p MP4 for your project",
-                data=video_response.content,
-                file_name=f"nike_kling_promo_{duration}s.mp4",
-                mime="video/mp4"
-            )
+            with open(st.session_state.video_source, "rb") as f:
+                st.download_button(
+                    label="📥 Download MP4 for your project",
+                    data=f.read(),
+                    file_name=f"nike_promo_{duration}s.mp4",
+                    mime="video/mp4"
+                )
         except Exception as e:
             st.warning("Video playable above — right-click player to save if download fails.")
